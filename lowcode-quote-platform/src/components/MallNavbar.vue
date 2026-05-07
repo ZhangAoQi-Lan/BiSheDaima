@@ -8,7 +8,9 @@
     <el-menu-item index="1" @click="router.push('/mall')"
       >产品大厅</el-menu-item
     >
-    <el-menu-item index="2">我的订单</el-menu-item>
+    <el-menu-item index="2" @click="router.push('/mall/orders')"
+      >我的订单</el-menu-item
+    >
     <el-menu-item index="3">帮助中心</el-menu-item>
 
     <div class="nav-actions">
@@ -126,7 +128,7 @@
         </div>
         <div class="footer-btns">
           <el-button @click="handleClearAll">清空购物车</el-button>
-          <el-button type="danger">提交全部订单</el-button>
+          <el-button type="danger" :loading="submitting" @click="handleSubmitOrders">提交全部订单</el-button>
         </div>
       </div>
     </template>
@@ -149,6 +151,7 @@ import {
   deleteCartItem,
   clearCart as clearCartApi,
 } from "@/api/cart";
+import { createOrder } from "@/api/order";
 import { useUserStore } from "@/stores/user";
 
 const router = useRouter();
@@ -156,6 +159,7 @@ const userStore = useUserStore();
 const drawerVisible = ref(false);
 const cartItems = ref([]);
 const now = ref(Date.now());
+const submitting = ref(false);
 
 const totalPrice = computed(() =>
   cartItems.value
@@ -196,6 +200,25 @@ const handleClearAll = () => {
     cartItems.value = [];
     ElMessage.success("已清空暂存箱");
   });
+};
+
+const handleSubmitOrders = async () => {
+  if (cartItems.value.length === 0) {
+    ElMessage.warning("暂存箱为空，请先配置报价并加入暂存箱");
+    return;
+  }
+  try {
+    submitting.value = true;
+    await createOrder();
+    cartItems.value = [];
+    drawerVisible.value = false;
+    ElMessage.success("订单提交成功");
+    router.push("/mall/orders");
+  } catch {
+    ElMessage.error("订单提交失败，请重试");
+  } finally {
+    submitting.value = false;
+  }
 };
 
 const handleLogout = () => {

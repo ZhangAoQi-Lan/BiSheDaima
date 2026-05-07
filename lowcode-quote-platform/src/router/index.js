@@ -20,6 +20,12 @@ const router = createRouter({
       component: () => import('../views/mall/index.vue'),
       meta: { requiresAuth: true }
     },
+    {
+      path: '/mall/orders',
+      name: 'mall-orders',
+      component: () => import('../views/mall/orders.vue'),
+      meta: { requiresAuth: true }
+    },
 
     {
       path: '/admin',
