@@ -1,0 +1,104 @@
+{
+  "productId": "8331aad3-2c8f-402d-b9d7-adc200afe3f6",
+  "productName": "名片",
+  "categoryId": 1,
+  "elements": [
+    {
+      "id": "el_quantity",
+      "type": "number",
+      "name": "数量",
+      "unit": "盒",
+      "isRequired": true,
+      "defaultValue": 2,
+      "options": null,
+      "min": 1,
+      "max": 10000,
+      "step": 1,
+      "componentParams": {
+        "placeholder": "请输入数量",
+        "quickSelectIds": [1, 2, 5, 10]
+      }
+    },
+    {
+      "id": "el_material",
+      "type": "select",
+      "name": "材质",
+      "isRequired": true,
+      "defaultValue": "mat_300g_copper",
+      "options": [
+        { "id": "mat_300g_copper", "label": "300g铜版纸", "priceRatio": 1.0 },
+        { "id": "mat_250g_copper", "label": "250g铜版纸", "priceRatio": 0.8 },
+        { "id": "mat_special_art", "label": "特种艺术纸", "priceRatio": 2.5 }
+      ]
+    },
+    {
+      "id": "el_print_type",
+      "type": "radio",
+      "name": "印刷面",
+      "isRequired": true,
+      "defaultValue": "double",
+      "options": [
+        { "id": "single", "label": "单面", "priceRatio": 1.0 },
+        { "id": "double", "label": "双面", "priceRatio": 1.5 }
+      ]
+    },
+    {
+      "id": "el_craft_uv",
+      "type": "checkbox",
+      "name": "局部UV",
+      "isRequired": false,
+      "defaultValue": [],
+      "options": [
+        { "id": "front_uv", "label": "正面UV", "priceAdd": 15 },
+        { "id": "back_uv", "label": "反面UV", "priceAdd": 15 }
+      ]
+    },
+    {
+      "id": "el_craft_foil",
+      "type": "select",
+      "name": "烫金颜色",
+      "isRequired": false,
+      "defaultValue": "none",
+      "options": [
+        { "id": "none", "label": "不烫金", "priceAdd": 0 },
+        { "id": "gold", "label": "黄金", "priceAdd": 30 },
+        { "id": "silver", "label": "亮银", "priceAdd": 30 },
+        { "id": "red_gold", "label": "红金", "priceAdd": 35 }
+      ]
+    }
+  ],
+  "constraints": [
+    {
+      "id": "rule_uv_material",
+      "type": "disable",
+      "description": "特种纸不支持局部UV",
+      "condition": {
+        "targetId": "el_material",
+        "operator": "==",
+        "value": "mat_special_art"
+      },
+      "action": {
+        "targetId": "el_craft_uv",
+        "effect": "disable"
+      }
+    },
+    {
+       "id": "rule_foil_display",
+       "type": "hide",
+       "description": "非双面印刷时，隐藏背面烫金（如果是复选框里的项会比较复杂，这里简化为依赖印刷面控制整个工艺）",
+       "condition": {
+         "targetId": "el_print_type",
+         "operator": "==",
+         "value": "single"
+       },
+       "action": {
+         "targetId": "el_craft_foil",
+         "effect": "hide" 
+       }
+    }
+  ],
+  "pricing": {
+     "basePrice": 10.0,
+     "formula": "basePrice * (el_material.priceRatio) * (el_print_type.priceRatio) * el_quantity + el_craft_uv.priceAdd + el_craft_foil.priceAdd"
+  }
+}

@@ -1,0 +1,39 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/print_quote_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: Zhangaoqi... # TODO: 需要用户根据本地修改
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # 邮件服务配置模板，请根据您的实际发信服务器修改账号和授权码
+  mail:
+    host: smtp.qq.com
+    port: 465
+    username: 3351684424@qq.com
+    password: yjqcscffejciciia
+    protocol: smtps
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          ssl:
+            enable: true
+
+mybatis-plus:
+  configuration:
+#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # 打印 SQL 日志
+    map-underscore-to-camel-case: true
+
+# MinIO 对象存储配置（本地方式二：原生 minio.exe 启动，http://localhost:9000）
+minio:
+  endpoint: http://localhost:9000      # S3 API 端口（9001 是控制台 UI，别搞错了）
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket-name: graduationproject   # 手动在 MinIO 控制台创建的存储桶
+#minio启动  D:\edgedownload>minio.exe server D:\minio-data --console-address ":9001"

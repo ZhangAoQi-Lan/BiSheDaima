@@ -1,0 +1,13 @@
+/* 仅保留最基础的重置样式，移除任何屏幕宽度与居中的限制 */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#app {
+  width: 100%;
+  min-height: 100vh;
+  /* 移除 max-width: 1280px 和 display: grid 等限制 */
+}
