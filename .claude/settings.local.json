@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Content *)",
+      "Bash(git restore *)",
+      "Bash(git checkout *)",
+      "Bash(git diff *)",
+      "Read(//tmp/**)"
+    ]
+  }
+}

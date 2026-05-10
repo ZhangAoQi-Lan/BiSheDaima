@@ -159,10 +159,15 @@ const handleSubmit = async () => {
             captchaCode: form.captchaCode
           })
           userStore.setToken(res.token)
-          userStore.setUserInfo({ username: res.username, role: res.role })
+          userStore.setUserInfo({ username: res.username, nickname: res.nickname, avatar: res.avatar, role: res.role })
           ElMessage.success('登录成功')
-          const redirect = route.query.redirect || (res.role === 'ADMIN' ? '/admin/category' : '/mall')
-          router.push(redirect)
+          // 管理员强制进入后台，普通用户进入商城
+          if (res.role === 'ADMIN') {
+            router.push('/admin/category')
+          } else {
+            const redirect = route.query.redirect || '/mall'
+            router.push(redirect)
+          }
         } else {
           await register({
             username: form.username,
@@ -194,19 +199,23 @@ const handleSubmit = async () => {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #f3f4f6;
+  background: linear-gradient(160deg, #f0f2f5 0%, #e8ecf1 50%, #f5f0f0 100%);
 }
 
 .login-card {
-  width: 400px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 420px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  border: 1px solid rgba(0,0,0,.04);
+  animation: fadeInScale .5s var(--ease-out);
 }
 
 .login-header {
-  font-size: 20px;
-  font-weight: bold;
+  font-size: 22px;
+  font-weight: 800;
   text-align: center;
+  color: var(--gray-700);
+  letter-spacing: -.2px;
 }
 
 .switch-mode {

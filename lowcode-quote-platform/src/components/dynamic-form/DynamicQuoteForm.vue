@@ -7,7 +7,10 @@
         <el-col :span="18">
           <div class="config-panel">
             <div class="panel-header">
-              <h2 class="product-title">{{ schemaData.productName }} <span class="sub-title">定制选项</span></h2>
+              <h2 class="product-title">
+                {{ schemaData.productName }}
+                <span class="sub-title">定制选项</span>
+              </h2>
             </div>
 
             <el-form :model="formData" label-width="140px" class="quote-form">
@@ -33,9 +36,21 @@
                           @change="handleFormChange"
                           style="width: 180px"
                         >
-                          <el-option v-for="preset in element.presets" :key="preset" :label="String(preset)" :value="preset" />
+                          <el-option
+                            v-for="preset in element.presets"
+                            :key="typeof preset === 'object' ? preset.label : preset"
+                            :label="typeof preset === 'object' ? preset.label : String(preset)"
+                            :value="typeof preset === 'object' ? preset.label : preset"
+                          />
                         </el-select>
-                        <el-input-number v-else v-model="formData[element.id]" :min="element.min" :max="element.max" :step="element.step" @change="handleFormChange" />
+                        <el-input-number
+                          v-else
+                          v-model="formData[element.id]"
+                          :min="element.min"
+                          :max="element.max"
+                          :step="element.step"
+                          @change="handleFormChange"
+                        />
                         <span class="unit" v-if="element.unit">{{ element.unit }}</span>
                       </div>
                     </template>
@@ -46,20 +61,34 @@
                           v-if="!sizeMixCustom[element.id]"
                           v-model="sizeMixPresetKey[element.id]"
                           placeholder="选择标准尺寸"
-                          @change="(val) => onSizePresetSelect(element, val)"
+                          @change="(value) => onSizePresetSelect(element, value)"
                           style="width: 180px"
                         >
-                          <el-option v-for="p in element.presets" :key="p.label" :label="p.label" :value="p.label" />
+                          <el-option v-for="preset in element.presets" :key="preset.label" :label="preset.label" :value="preset.label" />
                         </el-select>
                         <div v-else class="custom-size-row">
                           <span>宽</span>
-                          <el-input-number v-model="formData[element.id + '_w']" :min="0" :controls="false" style="width: 70px" @change="handleFormChange" />
+                          <el-input-number
+                            v-model="formData[`${element.id}_w`]"
+                            :min="0"
+                            :controls="false"
+                            style="width: 70px"
+                            @change="handleFormChange"
+                          />
                           <span>mm</span>
                           <span>高</span>
-                          <el-input-number v-model="formData[element.id + '_h']" :min="0" :controls="false" style="width: 70px" @change="handleFormChange" />
+                          <el-input-number
+                            v-model="formData[`${element.id}_h`]"
+                            :min="0"
+                            :controls="false"
+                            style="width: 70px"
+                            @change="handleFormChange"
+                          />
                           <span>mm</span>
                         </div>
-                        <el-checkbox v-model="sizeMixCustom[element.id]" @change="(val) => onSizeCustomToggle(element, val)">自定义</el-checkbox>
+                        <el-checkbox v-model="sizeMixCustom[element.id]" @change="(value) => onSizeCustomToggle(element, value)">
+                          自定义
+                        </el-checkbox>
                       </div>
                     </template>
 
@@ -71,31 +100,42 @@
                       :disabled="isDisabled(element.id)"
                       @change="handleFormChange"
                     >
-                      <el-option v-for="opt in element.options" :key="opt.id" :label="opt.label" :value="opt.id" />
+                      <el-option v-for="option in element.options" :key="option.id" :label="option.label" :value="option.id" />
                     </el-select>
 
-                    <el-radio-group v-else-if="element.type === 'radio'" v-model="formData[element.id]" :disabled="isDisabled(element.id)" @change="handleFormChange">
-                      <el-radio-button v-for="opt in element.options" :key="opt.id" :label="opt.id">{{ opt.label }}</el-radio-button>
+                    <el-radio-group
+                      v-else-if="element.type === 'radio'"
+                      v-model="formData[element.id]"
+                      :disabled="isDisabled(element.id)"
+                      @change="handleFormChange"
+                    >
+                      <el-radio-button v-for="option in element.options" :key="option.id" :label="option.id">
+                        {{ option.label }}
+                      </el-radio-button>
                     </el-radio-group>
 
                     <template v-else-if="element.type === 'checkbox'">
                       <div class="craft-options-row">
-                        <div v-for="opt in element.options" :key="opt.id" class="craft-option-wrap">
-                          <el-checkbox-group v-model="formData[element.id]" :disabled="isDisabled(element.id)" @change="(val) => onCraftChange(element, val)">
-                            <el-checkbox-button :label="opt.id">{{ opt.label }}</el-checkbox-button>
+                        <div v-for="option in element.options" :key="option.id" class="craft-option-wrap">
+                          <el-checkbox-group
+                            v-model="formData[element.id]"
+                            :disabled="isDisabled(element.id)"
+                            @change="(value) => onCraftChange(element, value)"
+                          >
+                            <el-checkbox-button :label="option.id">{{ option.label }}</el-checkbox-button>
                           </el-checkbox-group>
                           <el-button
-                            v-if="opt.subElements && (formData[element.id] || []).includes(opt.id)"
+                            v-if="option.subElements && (formData[element.id] || []).includes(option.id)"
                             type="primary"
                             circle
                             size="small"
                             class="craft-config-btn"
-                            @click.stop="openCraftDialog(opt)"
+                            @click.stop="openCraftDialog(option)"
                           >
                             <el-icon><Setting /></el-icon>
                           </el-button>
                           <el-tag
-                            v-if="(formData[element.id] || []).includes(opt.id) && opt.subElements && isCraftConfigured(opt)"
+                            v-if="(formData[element.id] || []).includes(option.id) && option.subElements && isCraftConfigured(option)"
                             type="success"
                             size="small"
                           >
@@ -131,9 +171,21 @@
                           @change="handleFormChange"
                           style="width: 180px"
                         >
-                          <el-option v-for="preset in element.presets" :key="preset" :label="String(preset)" :value="preset" />
+                          <el-option
+                            v-for="preset in element.presets"
+                            :key="typeof preset === 'object' ? preset.label : preset"
+                            :label="typeof preset === 'object' ? preset.label : String(preset)"
+                            :value="typeof preset === 'object' ? preset.label : preset"
+                          />
                         </el-select>
-                        <el-input-number v-else v-model="formData[element.id]" :min="element.min" :max="element.max" :step="element.step" @change="handleFormChange" />
+                        <el-input-number
+                          v-else
+                          v-model="formData[element.id]"
+                          :min="element.min"
+                          :max="element.max"
+                          :step="element.step"
+                          @change="handleFormChange"
+                        />
                         <span class="unit" v-if="element.unit">{{ element.unit }}</span>
                       </div>
                     </template>
@@ -144,20 +196,34 @@
                           v-if="!sizeMixCustom[element.id]"
                           v-model="sizeMixPresetKey[element.id]"
                           placeholder="选择标准尺寸"
-                          @change="(val) => onSizePresetSelect(element, val)"
+                          @change="(value) => onSizePresetSelect(element, value)"
                           style="width: 180px"
                         >
-                          <el-option v-for="p in element.presets" :key="p.label" :label="p.label" :value="p.label" />
+                          <el-option v-for="preset in element.presets" :key="preset.label" :label="preset.label" :value="preset.label" />
                         </el-select>
                         <div v-else class="custom-size-row">
                           <span>宽</span>
-                          <el-input-number v-model="formData[element.id + '_w']" :min="0" :controls="false" style="width: 70px" @change="handleFormChange" />
+                          <el-input-number
+                            v-model="formData[`${element.id}_w`]"
+                            :min="0"
+                            :controls="false"
+                            style="width: 70px"
+                            @change="handleFormChange"
+                          />
                           <span>mm</span>
                           <span>高</span>
-                          <el-input-number v-model="formData[element.id + '_h']" :min="0" :controls="false" style="width: 70px" @change="handleFormChange" />
+                          <el-input-number
+                            v-model="formData[`${element.id}_h`]"
+                            :min="0"
+                            :controls="false"
+                            style="width: 70px"
+                            @change="handleFormChange"
+                          />
                           <span>mm</span>
                         </div>
-                        <el-checkbox v-model="sizeMixCustom[element.id]" @change="(val) => onSizeCustomToggle(element, val)">自定义</el-checkbox>
+                        <el-checkbox v-model="sizeMixCustom[element.id]" @change="(value) => onSizeCustomToggle(element, value)">
+                          自定义
+                        </el-checkbox>
                       </div>
                     </template>
 
@@ -169,31 +235,42 @@
                       :disabled="isDisabled(element.id)"
                       @change="handleFormChange"
                     >
-                      <el-option v-for="opt in element.options" :key="opt.id" :label="opt.label" :value="opt.id" />
+                      <el-option v-for="option in element.options" :key="option.id" :label="option.label" :value="option.id" />
                     </el-select>
 
-                    <el-radio-group v-else-if="element.type === 'radio'" v-model="formData[element.id]" :disabled="isDisabled(element.id)" @change="handleFormChange">
-                      <el-radio-button v-for="opt in element.options" :key="opt.id" :label="opt.id">{{ opt.label }}</el-radio-button>
+                    <el-radio-group
+                      v-else-if="element.type === 'radio'"
+                      v-model="formData[element.id]"
+                      :disabled="isDisabled(element.id)"
+                      @change="handleFormChange"
+                    >
+                      <el-radio-button v-for="option in element.options" :key="option.id" :label="option.id">
+                        {{ option.label }}
+                      </el-radio-button>
                     </el-radio-group>
 
                     <template v-else-if="element.type === 'checkbox'">
                       <div class="craft-options-row">
-                        <div v-for="opt in element.options" :key="opt.id" class="craft-option-wrap">
-                          <el-checkbox-group v-model="formData[element.id]" :disabled="isDisabled(element.id)" @change="(val) => onCraftChange(element, val)">
-                            <el-checkbox-button :label="opt.id">{{ opt.label }}</el-checkbox-button>
+                        <div v-for="option in element.options" :key="option.id" class="craft-option-wrap">
+                          <el-checkbox-group
+                            v-model="formData[element.id]"
+                            :disabled="isDisabled(element.id)"
+                            @change="(value) => onCraftChange(element, value)"
+                          >
+                            <el-checkbox-button :label="option.id">{{ option.label }}</el-checkbox-button>
                           </el-checkbox-group>
                           <el-button
-                            v-if="opt.subElements && (formData[element.id] || []).includes(opt.id)"
+                            v-if="option.subElements && (formData[element.id] || []).includes(option.id)"
                             type="primary"
                             circle
                             size="small"
                             class="craft-config-btn"
-                            @click.stop="openCraftDialog(opt)"
+                            @click.stop="openCraftDialog(option)"
                           >
                             <el-icon><Setting /></el-icon>
                           </el-button>
                           <el-tag
-                            v-if="(formData[element.id] || []).includes(opt.id) && opt.subElements && isCraftConfigured(opt)"
+                            v-if="(formData[element.id] || []).includes(option.id) && option.subElements && isCraftConfigured(option)"
                             type="success"
                             size="small"
                           >
@@ -212,16 +289,20 @@
         <el-col :span="6">
           <div class="pricing-affix">
             <el-card shadow="always" class="pricing-card" :body-style="{ padding: '0px' }">
-              <div class="pricing-header"><h3>订单报价结算</h3></div>
+              <div class="pricing-header">
+                <h3>订单报价结算</h3>
+              </div>
               <div class="pricing-body">
                 <div class="summary-item">
-                  <span class="label">产品名称：</span>
+                  <span class="label">产品名称</span>
                   <span class="value">{{ schemaData.productName }}</span>
                 </div>
                 <el-divider border-style="dashed" />
                 <div class="total-price-wrap">
-                  <div class="total-label">预计总价 (不含运费)</div>
-                  <div class="price-val">¥ <span>{{ currentTotalPrice }}</span></div>
+                  <div class="total-label">预计总价（不含运费）</div>
+                  <div class="price-val">
+                    ¥ <span :class="{ 'price-flash': priceChanged }" :key="currentTotalPrice">{{ currentTotalPrice }}</span>
+                  </div>
                 </div>
                 <div class="action-wrap">
                   <el-button type="danger" size="large" class="submit-btn" @click="submitQuote">立即结算报价</el-button>
@@ -235,10 +316,10 @@
     </div>
 
     <el-dialog v-model="craftDialogVisible" :title="craftDialogTitle" width="580px" class="craft-dialog">
-      <el-form :model="craftFormData" label-width="100px" style="padding: 10px 20px" v-if="craftCurrentOpt">
+      <el-form v-if="craftCurrentOpt" :model="craftFormData" label-width="100px" style="padding: 10px 20px">
         <el-form-item v-for="sub in craftCurrentOpt.subElements" :key="sub.id" :label="sub.name" :required="sub.required">
           <el-select v-if="sub.type === 'select'" v-model="craftFormData[sub.id]" placeholder="请选择" style="width: 220px">
-            <el-option v-for="sopt in sub.options" :key="sopt.id" :label="sopt.label" :value="sopt.id" />
+            <el-option v-for="option in sub.options" :key="option.id" :label="option.label" :value="option.id" />
           </el-select>
           <el-input-number v-else-if="sub.type === 'number'" v-model="craftFormData[sub.id]" :min="sub.min || 1" style="width: 160px" />
           <el-input v-else v-model="craftFormData[sub.id]" :placeholder="sub.placeholder || '请输入'" style="width: 220px" />
@@ -258,6 +339,7 @@ import { ElMessage } from 'element-plus'
 import { QuestionFilled, Setting } from '@element-plus/icons-vue'
 import { getCategorySchema, adminPreviewCalculatePrice } from '@/api/schema'
 import { addCartItem } from '@/api/cart'
+import { collectConstraintEffects, syncConstrainedFormState } from '@/utils/constraint-engine'
 import { getAllSchemaElements, getSectionElements, normalizeSchema } from '@/utils/schema'
 
 const props = defineProps({
@@ -268,6 +350,7 @@ const loading = ref(true)
 const schemaData = ref(normalizeSchema(null))
 const formData = ref({})
 const currentTotalPrice = ref('0.00')
+const priceChanged = ref(false)
 const hiddenElements = ref(new Set())
 const disabledElements = ref(new Set())
 const sizeMixPresetKey = ref({})
@@ -284,14 +367,15 @@ const craftStoredData = ref({})
 const orderedSections = computed(() => {
   return [...(schemaData.value.sections || [])].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
 })
+
 const commonElements = computed(() => {
-  const all = getSectionElements(schemaData.value.common)
-  return [...all].sort((a, b) => (a.weight || 0) - (b.weight || 0))
+  const elements = getSectionElements(schemaData.value.common)
+  return [...elements].sort((a, b) => (a.weight || 0) - (b.weight || 0))
 })
 
 const getSortedSectionElements = (section) => {
-  const all = getSectionElements(section)
-  return [...all].sort((a, b) => (a.weight || 0) - (b.weight || 0))
+  const elements = getSectionElements(section)
+  return [...elements].sort((a, b) => (a.weight || 0) - (b.weight || 0))
 }
 
 const getAllElementsFlat = () => getAllSchemaElements(schemaData.value)
@@ -309,39 +393,47 @@ const normalizeSizePreset = (preset) => {
     const height = Number(preset.height) || 0
     if (width <= 0 || height <= 0) return null
     const label = (preset.label || '').trim() || `${width}x${height}mm`
-    return { label, width, height }
+    return { label, width, height, priceAdd: Number(preset.priceAdd) || 0 }
   }
+
   const parsed = parseSizeFromLabel(preset)
   if (!parsed || parsed.width <= 0 || parsed.height <= 0) return null
+
   return {
     label: String(preset || '').trim() || `${parsed.width}x${parsed.height}mm`,
     width: parsed.width,
-    height: parsed.height
+    height: parsed.height,
+    priceAdd: 0
   }
 }
 
-const normalizeSizeMixElement = (el) => {
-  if (!el || el.type !== 'size-mix') return
-  const presets = (Array.isArray(el.presets) ? el.presets : [])
+const normalizeSizeMixElement = (element) => {
+  if (!element || element.type !== 'size-mix') return
+  const presets = (Array.isArray(element.presets) ? element.presets : [])
     .map(normalizeSizePreset)
     .filter(Boolean)
-  el.presets = presets.length ? presets : [{ label: '90x54mm', width: 90, height: 54 }]
+  element.presets = presets.length ? presets : [{ label: '90x54mm', width: 90, height: 54, priceAdd: 0 }]
 }
 
-onMounted(() => loadSchema())
-watch(() => props.categoryId, () => loadSchema())
+const applySchemaData = (rawSchema) => {
+  schemaData.value = normalizeSchema(rawSchema, '')
+  initFormModel()
+  handleFormChange()
+}
 
 const loadSchema = async () => {
-  if (!props.categoryId) return
+  if (!props.categoryId) {
+    loading.value = false
+    return
+  }
+
   loading.value = true
   try {
-    let res = await getCategorySchema(props.categoryId)
-    if (typeof res === 'string') res = JSON.parse(res)
-    schemaData.value = normalizeSchema(res, '')
-    initFormModel()
-    handleFormChange()
-  } catch (err) {
-    console.error(err)
+    let response = await getCategorySchema(props.categoryId)
+    if (typeof response === 'string') response = JSON.parse(response)
+    applySchemaData(response)
+  } catch (error) {
+    console.error(error)
     ElMessage.warning('加载配置失败')
   } finally {
     loading.value = false
@@ -350,123 +442,130 @@ const loadSchema = async () => {
 
 const initFormModel = () => {
   const model = {}
-  getAllElementsFlat().forEach((el) => {
-    if (el.type === 'checkbox') {
-      model[el.id] = []
-      el.options?.forEach((opt) => {
-        opt.subElements?.forEach((sub) => {
-          model[sub.id] = sub.type === 'number' ? 1 : ''
+  const presetState = {}
+  const customState = {}
+
+  getAllElementsFlat().forEach((element) => {
+    if (element.type === 'checkbox') {
+      model[element.id] = Array.isArray(element.defaultValue) ? [...element.defaultValue] : []
+      element.options?.forEach((option) => {
+        option.subElements?.forEach((subElement) => {
+          model[subElement.id] = subElement.type === 'number' ? 1 : ''
         })
       })
-    } else if (el.type === 'number') {
-      model[el.id] = el.presets?.[0] || 1
-    } else if (el.type === 'size-mix') {
-      normalizeSizeMixElement(el)
-      const p = el.presets?.[0]
-      sizeMixPresetKey.value[el.id] = p?.label || ''
-      sizeMixCustom.value[el.id] = false
-      model[el.id + '_w'] = p?.width || 0
-      model[el.id + '_h'] = p?.height || 0
-      model[el.id] = p?.label || ''
-    } else {
-      model[el.id] = ''
+      return
     }
+
+    if (element.type === 'number') {
+      model[element.id] = element.defaultValue ?? element.presets?.[0] ?? 1
+      return
+    }
+
+    if (element.type === 'size-mix') {
+      normalizeSizeMixElement(element)
+      const firstPreset = element.presets?.[0]
+      presetState[element.id] = firstPreset?.label || ''
+      customState[element.id] = false
+      model[`${element.id}_w`] = firstPreset?.width || 0
+      model[`${element.id}_h`] = firstPreset?.height || 0
+      model[element.id] = firstPreset?.label || ''
+      return
+    }
+
+    model[element.id] = element.defaultValue ?? ''
   })
+
   formData.value = model
+  sizeMixPresetKey.value = presetState
+  sizeMixCustom.value = customState
   lastCheckedValues.value = JSON.parse(JSON.stringify(model))
+}
+
+const updatePrice = async () => {
+  if (!props.categoryId) return
+
+  try {
+    const response = await adminPreviewCalculatePrice(props.categoryId, { formData: formData.value })
+    if (response && response !== currentTotalPrice.value) {
+      priceChanged.value = true
+      currentTotalPrice.value = response
+      setTimeout(() => {
+        priceChanged.value = false
+      }, 400)
+    }
+  } catch (_) {}
+}
+
+const checkConstraints = () => {
+  const { hiddenIds, disabledIds } = collectConstraintEffects(schemaData.value, formData.value)
+
+  syncConstrainedFormState({
+    schema: schemaData.value,
+    formData: formData.value,
+    hiddenIds,
+    disabledIds,
+    sizeMixPresetKey: sizeMixPresetKey.value,
+    sizeMixCustom: sizeMixCustom.value
+  })
+
+  hiddenElements.value = hiddenIds
+  disabledElements.value = disabledIds
 }
 
 const handleFormChange = () => {
   checkConstraints()
   if (calcTimer) clearTimeout(calcTimer)
-  calcTimer = setTimeout(async () => {
-    try {
-      const res = await adminPreviewCalculatePrice(props.categoryId, { formData: formData.value })
-      if (res) currentTotalPrice.value = res
-    } catch (_) {}
-  }, 300)
+  calcTimer = setTimeout(() => {
+    updatePrice()
+  }, 200)
 }
 
-const checkConstraints = () => {
-  const hidden = new Set()
-  const disabled = new Set()
-  ;(schemaData.value.common?.constraints || []).forEach((r) => {
-    const val = formData.value[r.condition.targetId]
-    let hit = false
-    if (r.condition.operator === '==') hit = val == r.condition.value
-    else if (r.condition.operator === '!=') hit = val != r.condition.value
-    else if (r.condition.operator === 'in') hit = Array.isArray(val) && val.includes(r.condition.value)
-    if (!hit) return
-    if (r.action.effect === 'hide') hidden.add(r.action.targetId)
-    else if (r.action.effect === 'disable') disabled.add(r.action.targetId)
-  })
-  orderedSections.value.forEach((section) => {
-    ;(section.constraints || []).forEach((r) => {
-      const val = formData.value[r.condition.targetId]
-      let hit = false
-      if (r.condition.operator === '==') hit = val == r.condition.value
-      else if (r.condition.operator === '!=') hit = val != r.condition.value
-      else if (r.condition.operator === 'in') hit = Array.isArray(val) && val.includes(r.condition.value)
-      if (!hit) return
-      if (r.action.effect === 'hide') hidden.add(r.action.targetId)
-      else if (r.action.effect === 'disable') disabled.add(r.action.targetId)
-    })
-  })
-  ;(schemaData.value.constraints || []).forEach((r) => {
-    const val = formData.value[r.condition.targetId]
-    let hit = false
-    if (r.condition.operator === '==') hit = val == r.condition.value
-    else if (r.condition.operator === '!=') hit = val != r.condition.value
-    else if (r.condition.operator === 'in') hit = Array.isArray(val) && val.includes(r.condition.value)
-    if (!hit) return
-    if (r.action.effect === 'hide') hidden.add(r.action.targetId)
-    else if (r.action.effect === 'disable') disabled.add(r.action.targetId)
-  })
-  hiddenElements.value = hidden
-  disabledElements.value = disabled
-}
+const onSizePresetSelect = (element, label) => {
+  normalizeSizeMixElement(element)
+  const preset = element.presets.find((item) => item.label === label)
+  if (!preset) return
 
-const onSizePresetSelect = (el, label) => {
-  normalizeSizeMixElement(el)
-  const p = el.presets.find(x => x.label === label)
-  if (!p) return
-  formData.value[el.id + '_w'] = p.width
-  formData.value[el.id + '_h'] = p.height
-  formData.value[el.id] = label
-  sizeMixCustom.value[el.id] = false
+  formData.value[`${element.id}_w`] = preset.width
+  formData.value[`${element.id}_h`] = preset.height
+  formData.value[element.id] = label
+  sizeMixCustom.value[element.id] = false
   handleFormChange()
 }
 
-const onSizeCustomToggle = (el, custom) => {
+const onSizeCustomToggle = (element, custom) => {
   if (custom) {
-    sizeMixPresetKey.value[el.id] = ''
-    formData.value[el.id] = 'custom'
+    sizeMixPresetKey.value[element.id] = ''
+    formData.value[element.id] = 'custom'
   } else {
-    onSizePresetSelect(el, el.presets?.[0]?.label)
+    onSizePresetSelect(element, element.presets?.[0]?.label)
+    return
   }
+
   handleFormChange()
 }
 
-const onCraftChange = (el, val) => {
-  const old = lastCheckedValues.value[el.id] || []
-  const added = val.filter(v => !old.includes(v))
+const onCraftChange = (element, value) => {
+  const previous = lastCheckedValues.value[element.id] || []
+  const added = value.filter((item) => !previous.includes(item))
   if (added.length > 0) {
-    const opt = el.options.find(o => o.id === added[0])
-    if (opt?.subElements?.length) openCraftDialog(opt)
+    const option = element.options.find((item) => item.id === added[0])
+    if (option?.subElements?.length) openCraftDialog(option)
   }
-  lastCheckedValues.value[el.id] = [...val]
+  lastCheckedValues.value[element.id] = [...value]
   handleFormChange()
 }
 
-const openCraftDialog = (opt) => {
-  craftCurrentOpt.value = opt
-  craftDialogTitle.value = `${opt.label} 参数配置`
-  const saved = craftStoredData.value[opt.id] || {}
-  const init = {}
-  ;(opt.subElements || []).forEach((s) => {
-    init[s.id] = saved[s.id] || (s.type === 'number' ? 1 : '')
+const openCraftDialog = (option) => {
+  craftCurrentOpt.value = option
+  craftDialogTitle.value = `${option.label} 参数配置`
+  const saved = craftStoredData.value[option.id] || {}
+  const initValue = {}
+
+  ;(option.subElements || []).forEach((subElement) => {
+    initValue[subElement.id] = saved[subElement.id] || (subElement.type === 'number' ? 1 : '')
   })
-  craftFormData.value = init
+
+  craftFormData.value = initValue
   craftDialogVisible.value = true
 }
 
@@ -477,68 +576,77 @@ const confirmCraftDialog = () => {
   handleFormChange()
 }
 
-const isCraftConfigured = (opt) => !!craftStoredData.value[opt.id]
+const isCraftConfigured = (option) => !!craftStoredData.value[option.id]
 const isHidden = (id) => hiddenElements.value.has(id)
 const isDisabled = (id) => disabledElements.value.has(id)
 
-const submitQuote = () => ElMessage.success(`订单已提交，总计：${currentTotalPrice.value}`)
+const submitQuote = () => {
+  ElMessage.success(`订单已提交，总计：¥${currentTotalPrice.value}`)
+}
 
 const buildReadableFormData = () => {
   const grouped = {}
   const commonResult = {}
-  commonElements.value.forEach((el) => {
-    if (isHidden(el.id)) return
-    const val = formData.value[el.id]
+
+  commonElements.value.forEach((element) => {
+    if (isHidden(element.id)) return
+
+    const value = formData.value[element.id]
     let readableValue = ''
-    if (el.type === 'number') {
-      readableValue = `${val}${el.unit || ''}`
-    } else if (el.type === 'select' || el.type === 'radio') {
-      const opt = el.options?.find((o) => o.id === val)
-      readableValue = opt ? opt.label : val
-    } else if (el.type === 'size-mix') {
-      readableValue = sizeMixCustom.value[el.id]
-        ? `自定义: ${formData.value[el.id + '_w']} x ${formData.value[el.id + '_h']} mm`
-        : val
-    } else if (el.type === 'checkbox') {
-      const labels = (val || []).map((id) => {
-        const opt = el.options?.find((o) => o.id === id)
-        return opt ? opt.label : id
+
+    if (element.type === 'number') {
+      readableValue = `${value}${element.unit || ''}`
+    } else if (element.type === 'select' || element.type === 'radio') {
+      const option = element.options?.find((item) => item.id === value)
+      readableValue = option ? option.label : value
+    } else if (element.type === 'size-mix') {
+      readableValue = sizeMixCustom.value[element.id]
+        ? `自定义 ${formData.value[`${element.id}_w`]} x ${formData.value[`${element.id}_h`]} mm`
+        : value
+    } else if (element.type === 'checkbox') {
+      const labels = (value || []).map((id) => {
+        const option = element.options?.find((item) => item.id === id)
+        return option ? option.label : id
       })
       readableValue = labels.join('、')
     }
-    if (readableValue) commonResult[el.name] = readableValue
+
+    if (readableValue) commonResult[element.name] = readableValue
   })
+
   Object.assign(grouped, commonResult)
 
   orderedSections.value.forEach((section) => {
     const sectionResult = {}
-    getSortedSectionElements(section).forEach((el) => {
-      if (isHidden(el.id)) return
-      const val = formData.value[el.id]
+
+    getSortedSectionElements(section).forEach((element) => {
+      if (isHidden(element.id)) return
+
+      const value = formData.value[element.id]
       let readableValue = ''
 
-      if (el.type === 'number') {
-        readableValue = `${val}${el.unit || ''}`
-      } else if (el.type === 'select' || el.type === 'radio') {
-        const opt = el.options?.find((o) => o.id === val)
-        readableValue = opt ? opt.label : val
-      } else if (el.type === 'size-mix') {
-        readableValue = sizeMixCustom.value[el.id]
-          ? `自定义: ${formData.value[el.id + '_w']} x ${formData.value[el.id + '_h']} mm`
-          : val
-      } else if (el.type === 'checkbox') {
-        const labels = (val || []).map((id) => {
-          const opt = el.options?.find((o) => o.id === id)
-          let label = opt ? opt.label : id
+      if (element.type === 'number') {
+        readableValue = `${value}${element.unit || ''}`
+      } else if (element.type === 'select' || element.type === 'radio') {
+        const option = element.options?.find((item) => item.id === value)
+        readableValue = option ? option.label : value
+      } else if (element.type === 'size-mix') {
+        readableValue = sizeMixCustom.value[element.id]
+          ? `自定义 ${formData.value[`${element.id}_w`]} x ${formData.value[`${element.id}_h`]} mm`
+          : value
+      } else if (element.type === 'checkbox') {
+        const labels = (value || []).map((id) => {
+          const option = element.options?.find((item) => item.id === id)
+          let label = option ? option.label : id
           const stored = craftStoredData.value[id]
-          if (stored && opt?.subElements) {
-            const subLabels = opt.subElements.map((sub) => {
-              const subVal = stored[sub.id]
-              if (sub.type === 'select') {
-                const sopt = sub.options?.find(so => so.id === subVal)
-                return `${sub.name}: ${sopt ? sopt.label : subVal}`
+          if (stored && option?.subElements) {
+            const subLabels = option.subElements.map((subElement) => {
+              const subValue = stored[subElement.id]
+              if (subElement.type === 'select') {
+                const subOption = subElement.options?.find((item) => item.id === subValue)
+                return `${subElement.name}: ${subOption ? subOption.label : subValue}`
               }
-              return `${sub.name}: ${subVal}`
+              return `${subElement.name}: ${subValue}`
             })
             label += ` (${subLabels.join(', ')})`
           }
@@ -547,21 +655,24 @@ const buildReadableFormData = () => {
         readableValue = labels.join('、')
       }
 
-      if (readableValue) sectionResult[el.name] = readableValue
+      if (readableValue) sectionResult[element.name] = readableValue
     })
-    if (Object.keys(sectionResult).length) {
-      if (section.name && section.name.trim()) {
-        grouped[section.name] = sectionResult
-      } else {
-        Object.assign(grouped, sectionResult)
-      }
+
+    if (!Object.keys(sectionResult).length) return
+
+    if (section.name && section.name.trim()) {
+      grouped[section.name] = sectionResult
+    } else {
+      Object.assign(grouped, sectionResult)
     }
   })
+
   return grouped
 }
 
 const addToCart = async () => {
-  if (!schemaData.value) return ElMessage.warning('商品数据尚未加载完成')
+  if (!schemaData.value) return
+
   try {
     await addCartItem({
       categoryId: props.categoryId,
@@ -569,38 +680,82 @@ const addToCart = async () => {
       formData: buildReadableFormData(),
       price: currentTotalPrice.value
     })
-    ElMessage.success('已加入暂存箱！10分钟内有效，请及时处理。')
+    ElMessage.success('已加入暂存箱，10 分钟内有效，请及时处理。')
     window.dispatchEvent(new CustomEvent('cart-updated'))
-  } catch (err) {
+  } catch (_) {
     ElMessage.error('加入暂存箱失败，请重试')
   }
 }
+
+onMounted(() => loadSchema())
+
+watch(
+  () => props.categoryId,
+  () => {
+    loadSchema()
+  }
+)
 </script>
 
 <style scoped>
 .dynamic-quote-form { margin-top: 10px; }
-.config-panel { background: #fff; border-radius: 8px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05); padding: 20px 30px; }
-.panel-header { border-bottom: 1px solid #eee; margin-bottom: 20px; padding-bottom: 15px; }
-.product-title { font-size: 18px; color: #333; }
-.sub-title { font-size: 13px; color: #999; margin-left: 10px; font-weight: normal; }
-.section-block { margin-bottom: 16px; }
-.section-title { font-size: 16px; font-weight: 700; color: #303133; margin: 8px 0 14px; }
-.element-item { margin-bottom: 18px !important; }
-.tip-icon { margin-left: 5px; color: #ccc; cursor: pointer; }
+.config-panel { background: transparent; padding: 20px 24px; }
+.panel-header { margin-bottom: 20px; padding-bottom: 15px; }
+.product-title { font-size: 22px; font-weight: 800; color: var(--gray-700); letter-spacing: -.3px; }
+.sub-title { font-size: 13px; color: var(--gray-400); font-weight: 400; }
+.section-block {
+  background: #fff;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  padding: 22px 24px;
+  margin-bottom: 16px;
+  border: 1px solid var(--gray-200);
+  transition: box-shadow .25s;
+}
+.section-block:hover { box-shadow: var(--shadow-sm); }
+.section-title { font-size: 15px; font-weight: 700; color: var(--gray-700); margin: 0 0 16px; padding-bottom: 10px; border-bottom: 2px solid var(--gray-100); }
+.element-item { margin-bottom: 20px !important; }
+.tip-icon { margin-left: 5px; color: var(--gray-300); cursor: pointer; transition: color .2s; }
+.tip-icon:hover { color: var(--color-primary); }
 .number-input-wrap, .size-mix-container { display: flex; align-items: center; gap: 10px; }
-.custom-size-row { display: flex; align-items: center; background: #f9f9f9; padding: 4px 10px; border-radius: 4px; border: 1px solid #eee; gap: 6px; }
+.custom-size-row {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--gray-50); padding: 6px 12px;
+  border-radius: var(--radius-sm); border: 1px solid var(--gray-200);
+}
 .craft-options-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .craft-option-wrap { display: flex; align-items: center; gap: 5px; }
 .craft-config-btn { width: 26px !important; height: 26px !important; padding: 0 !important; }
 .pricing-affix { position: sticky; top: 20px; }
-.pricing-card { border: none; }
-.pricing-header { background: #f72a44; color: #fff; padding: 15px 20px; border-radius: 8px 8px 0 0; }
-.pricing-body { padding: 20px; }
-.summary-item { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 10px; }
-.total-price-wrap { text-align: right; margin-top: 20px; }
-.price-val { color: #f72a44; font-size: 20px; font-weight: bold; }
-.price-val span { font-size: 32px; }
-.action-wrap { margin-top: 25px; display: flex; flex-direction: column; gap: 10px; }
-.submit-btn { height: 45px; background: #f72a44 !important; border-color: #f72a44 !important; }
-.cart-btn { height: 40px; }
+.pricing-card {
+  border: none;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  transition: box-shadow .3s;
+}
+.pricing-card:hover { box-shadow: var(--shadow-xl); }
+.pricing-header {
+  background: linear-gradient(135deg, #1a1a2e, #f72a44);
+  color: #fff;
+  padding: 18px 20px;
+}
+.pricing-header h3 { font-size: 16px; font-weight: 700; margin: 0; letter-spacing: .3px; }
+.pricing-body { padding: 22px 20px; background: #fff; }
+.summary-item { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 10px; color: var(--gray-500); }
+.summary-item .value { font-weight: 600; color: var(--gray-600); }
+.total-price-wrap { text-align: right; margin-top: 16px; padding-top: 14px; border-top: 2px dashed var(--gray-200); }
+.total-label { font-size: 12px; color: var(--gray-400); text-transform: uppercase; letter-spacing: .6px; }
+.price-val { color: var(--color-primary); font-size: 22px; font-weight: 800; margin-top: 4px; }
+.price-val span { font-size: 36px; letter-spacing: -1px; }
+.action-wrap { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
+.submit-btn {
+  height: 48px !important; font-size: 15px !important; font-weight: 700 !important;
+  background: var(--color-primary) !important; border-color: var(--color-primary) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 4px 14px rgba(247,42,68,.3);
+  transition: all .25s !important;
+}
+.submit-btn:hover { box-shadow: 0 6px 20px rgba(247,42,68,.4); transform: translateY(-1px); }
+.cart-btn { height: 42px !important; border-radius: var(--radius-md) !important; font-weight: 600 !important; }
 </style>

@@ -1,10 +1,144 @@
 export const SECTION_KEYS = ['materials', 'sizeGroup', 'crafts', 'elements']
 
+export const RULE_OPERATOR_OPTIONS = [
+  { label: '等于', value: '==', description: '字段值与目标值完全一致时触发' },
+  { label: '不等于', value: '!=', description: '字段值与目标值不一致时触发' },
+  { label: '包含', value: 'in', description: '多选字段包含指定选项时触发' }
+]
+
+export const RULE_EFFECT_OPTIONS = [
+  { label: '隐藏字段', value: 'hide', description: '满足条件后不展示目标字段' },
+  { label: '禁用字段', value: 'disable', description: '满足条件后字段可见但不可编辑' }
+]
+
+export const DEFAULT_PRICING_OPERATIONS = [
+  {
+    id: 'op_base',
+    type: 'base',
+    label: '基础底价',
+    enabled: true,
+    description: '作为报价起始金额，通常对应开机费、基础工费或起印成本。'
+  },
+  {
+    id: 'op_options',
+    type: 'option_add_sum',
+    label: '选配加价汇总',
+    enabled: true,
+    description: '汇总纸张、工艺、尺寸预设等选项中配置的附加金额。'
+  },
+  {
+    id: 'op_quantity',
+    type: 'multiply_number',
+    label: '按数量乘算',
+    enabled: false,
+    fieldId: null,
+    description: '绑定数量类字段后，将当前金额按数量倍数放大。'
+  },
+  {
+    id: 'op_models',
+    type: 'multiply_number',
+    label: '按款数乘算',
+    enabled: false,
+    fieldId: null,
+    description: '绑定款数类字段后，适用于多款内容分别生产的场景。'
+  }
+]
+
+function sanitizePricingKey(rawValue = '') {
+  const normalized = String(rawValue)
+    .trim()
+    .replace(/[^A-Za-z0-9_]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+  if (!normalized) return null
+  return /^[A-Za-z_]/.test(normalized) ? normalized : `field_${normalized}`
+}
+
+function buildDefaultPricingKey(element = {}) {
+  const nameSlug = String(element.name || '')
+    .trim()
+    .replace(/[^A-Za-z0-9\u4e00-\u9fa5]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+  const idSlug = String(element.id || '')
+    .trim()
+    .replace(/[^A-Za-z0-9_]/g, '_')
+
+  const candidate = sanitizePricingKey(nameSlug)
+  if (candidate) return candidate
+  return sanitizePricingKey(idSlug) || `field_${Date.now()}`
+}
+
+export function normalizePricingKey(rawValue, element = {}) {
+  return sanitizePricingKey(rawValue) || buildDefaultPricingKey(element)
+}
+
+export function ensureElementPricingMeta(element = {}) {
+  if (!element.pricingMeta || typeof element.pricingMeta !== 'object') {
+    element.pricingMeta = {}
+  }
+
+  element.pricingMeta.key = normalizePricingKey(element.pricingMeta.key, element)
+  return element
+}
+
+export function createDefaultPricing(rawPricing = {}) {
+  const pricing = {
+    quantityElId: rawPricing?.quantityElId ?? null,
+    modelsElId: rawPricing?.modelsElId ?? null,
+    formula: rawPricing?.formula || '(basePrice + optionTotal) * quantity * models',
+    note: rawPricing?.note || '推荐直接使用公式计价；若未填写公式，则回退为下方结构化步骤。配置项价格由每个选项或尺寸预设中的 priceAdd 提供。',
+    operations: []
+  }
+
+  const rawOperations = Array.isArray(rawPricing?.operations) ? rawPricing.operations : []
+
+  if (rawOperations.length) {
+    pricing.operations = rawOperations.map((operation, index) => ({
+      id: operation?.id || `op_${index + 1}`,
+      type: operation?.type || 'option_add_sum',
+      label: operation?.label || `步骤 ${index + 1}`,
+      enabled: operation?.enabled !== false,
+      fieldId: operation?.fieldId ?? null,
+      description: operation?.description || ''
+    }))
+  } else {
+    pricing.operations = DEFAULT_PRICING_OPERATIONS.map((operation) => {
+      if (operation.id === 'op_quantity') {
+        return { ...operation, enabled: !!pricing.quantityElId, fieldId: pricing.quantityElId }
+      }
+      if (operation.id === 'op_models') {
+        return { ...operation, enabled: !!pricing.modelsElId, fieldId: pricing.modelsElId }
+      }
+      return { ...operation }
+    })
+  }
+
+  return pricing
+}
+
+export function syncPricingOperations(pricing) {
+  if (!pricing || !Array.isArray(pricing.operations)) return pricing
+  pricing.operations.forEach((op) => {
+    if (op.id === 'op_quantity') {
+      op.enabled = !!pricing.quantityElId
+      op.fieldId = pricing.quantityElId ?? null
+    }
+    if (op.id === 'op_models') {
+      op.enabled = !!pricing.modelsElId
+      op.fieldId = pricing.modelsElId ?? null
+    }
+  })
+  return pricing
+}
+
 export function createEmptyBucket(name = '', sortOrder = 1, id = null) {
   return {
     id: id || `sec_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
     name,
     sortOrder,
+    basePrice: 0,
     materials: [],
     sizeGroup: [],
     crafts: [],
@@ -26,24 +160,39 @@ function normalizeBucket(rawBucket, index, fallbackName = '') {
     id: rawBucket?.id || `sec_${Date.now()}_${index}`,
     name: normalizedName,
     sortOrder: Number(rawBucket?.sortOrder || index + 1),
+    basePrice: Number(rawBucket?.basePrice) || 0,
     constraints: Array.isArray(rawBucket?.constraints) ? rawBucket.constraints : []
   }
+
   SECTION_KEYS.forEach((key) => {
     bucket[key] = Array.isArray(rawBucket?.[key]) ? rawBucket[key] : []
+    bucket[key].forEach((element) => {
+      ensureElementPricingMeta(element)
+      if (element.options) {
+        element.options.forEach((opt) => {
+          if (opt.priceRatio === undefined) opt.priceRatio = 1
+        })
+      }
+    })
   })
+
   return bucket
 }
 
 export function normalizeSchema(raw, productNameFallback = '') {
   const source = raw && typeof raw === 'object' ? raw : {}
-  const pricing = source.pricing || { basePrice: 0, quantityElId: null }
+  const pricing = createDefaultPricing(source.pricing)
 
   if (Array.isArray(source.sections)) {
     const sections = source.sections.map((section, index) => normalizeBucket(section, index, ''))
-
     const common = normalizeBucket(source.common || {}, -1, '')
     common.id = 'common'
     common.sortOrder = 0
+
+    // Migrate old pricing.basePrice → common.basePrice
+    if (!common.basePrice && Number(source.pricing?.basePrice)) {
+      common.basePrice = Number(source.pricing.basePrice)
+    }
 
     return {
       ...source,
@@ -59,8 +208,21 @@ export function normalizeSchema(raw, productNameFallback = '') {
   const wrapped = createEmptyBucket('', 1, 'sec_base')
   SECTION_KEYS.forEach((key) => {
     wrapped[key] = Array.isArray(source[key]) ? source[key] : []
+    wrapped[key].forEach((element) => {
+      ensureElementPricingMeta(element)
+      if (element.options) {
+        element.options.forEach((opt) => {
+          if (opt.priceRatio === undefined) opt.priceRatio = 1
+        })
+      }
+    })
   })
   wrapped.constraints = Array.isArray(source.constraints) ? source.constraints : []
+
+  // Migrate old pricing.basePrice to the wrapped section
+  if (Number(source.pricing?.basePrice)) {
+    wrapped.basePrice = Number(source.pricing.basePrice)
+  }
 
   return {
     categoryId: source.categoryId ?? null,

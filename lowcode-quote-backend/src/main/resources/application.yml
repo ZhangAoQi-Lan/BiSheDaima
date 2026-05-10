@@ -37,3 +37,47 @@ minio:
   secret-key: minioadmin
   bucket-name: graduationproject   # 手动在 MinIO 控制台创建的存储桶
 #minio启动  D:\edgedownload>minio.exe server D:\minio-data --console-address ":9001"
+
+
+
+
+
+
+# server:
+#   port: 8080
+
+# spring:
+#   datasource:
+#     url: jdbc:mysql://127.0.0.1:13306/print_quote_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+#     username: print_quote_db
+#     password: F5AZ3L7JmDiiZAX8
+#     driver-class-name: com.mysql.cj.jdbc.Driver
+
+#   mail:
+#     host: smtp.qq.com
+#     port: 465
+#     username: 3351684424@qq.com
+#     password: yjqcscffejciciia
+#     protocol: smtps
+#     properties:
+#       mail:
+#         smtp:
+#           auth: true
+#           starttls:
+#             enable: true
+#             required: true
+#           ssl:
+#             enable: true
+
+# mybatis-plus:
+#   configuration:
+#     map-underscore-to-camel-case: true
+
+
+# # ===================== MinIO（已修改为服务器地址） =====================
+# minio:
+#   endpoint: http://123.207.187.236:19000
+#   access-key: minio
+#   secret-key: mTNhnN424e4XMnAH
+#   bucket-name: graduationproject
+# #minio启动  D:\edgedownload>minio.exe server D:\minio-data --console-address ":9001"

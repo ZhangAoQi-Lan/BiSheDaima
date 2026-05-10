@@ -1,15 +1,8 @@
 <template>
-  <div class="page">
-    <el-container class="layout">
-      <el-header class="top">
-        <div class="title">分类图纸编排</div>
-        <div>
-          <el-button type="primary" plain @click="$router.push('/admin/material')">物料中心</el-button>
-          <el-button type="success" :disabled="!isLeafNodeSelected" @click="saveToServer">保存图纸</el-button>
-          <el-button plain @click="previewJson">预览 JSON</el-button>
-        </div>
-      </el-header>
-
+  <div class="admin-page">
+    <AdminNavbar />
+    <div class="page-body">
+      <el-container class="layout">
       <el-container class="body">
         <el-aside width="280px" class="panel">
           <div class="panel-title">
@@ -56,7 +49,11 @@
         <el-main class="panel">
           <div class="panel-title row">
             <span>{{ isLeafNodeSelected ? `当前分类：${activeCategory?.name || ''}` : '请选择末级分类' }}</span>
-            <el-button v-if="isLeafNodeSelected" link type="danger" @click="clearCanvas">清空当前区域</el-button>
+            <div class="panel-actions">
+              <el-button v-if="isLeafNodeSelected" link type="danger" @click="clearCanvas">清空当前区域</el-button>
+              <el-button type="success" size="small" :disabled="!isLeafNodeSelected" @click="saveToServer">保存图纸</el-button>
+              <el-button plain size="small" @click="previewJson">预览 JSON</el-button>
+            </div>
           </div>
 
           <div class="section-bar" v-if="isLeafNodeSelected">
@@ -126,8 +123,9 @@
               <template v-if="['select', 'radio', 'checkbox'].includes(currentActiveElement.type)">
                 <el-divider>选项</el-divider>
                 <div class="opt-row" v-for="(option, optionIndex) in currentActiveElement.options" :key="optionIndex">
-                  <el-input v-model="option.label" size="small" />
-                  <el-input-number v-model="option.priceAdd" size="small" :step="1" />
+                  <el-input v-model="option.label" size="small" placeholder="名称" />
+                  <el-input-number v-model="option.priceAdd" size="small" :step="1" placeholder="加价" />
+                  <el-input-number v-model="option.priceRatio" size="small" :min="0" :step="0.1" :precision="2" placeholder="系数" style="width: 90px" />
                   <el-button
                     v-if="currentActiveElement.type === 'checkbox'"
                     link
@@ -153,8 +151,9 @@
                 <el-divider>尺寸预设</el-divider>
                 <div class="opt-row size-preset-row" v-for="(preset, presetIndex) in currentActiveElement.presets" :key="presetIndex">
                   <el-input v-model="preset.label" size="small" placeholder="如：90x54mm" />
-                  <el-input-number v-model="preset.width" size="small" :min="0" :step="1" />
-                  <el-input-number v-model="preset.height" size="small" :min="0" :step="1" />
+                  <el-input-number v-model="preset.width" size="small" :min="0" :step="1" placeholder="宽" />
+                  <el-input-number v-model="preset.height" size="small" :min="0" :step="1" placeholder="高" />
+                  <el-input-number v-model="preset.priceAdd" size="small" :min="0" :step="0.01" :precision="2" placeholder="加价" />
                   <el-button link type="danger" @click="removeSizePreset(currentActiveElement, presetIndex)">删</el-button>
                 </div>
                 <el-button plain type="primary" @click="addSizePreset(currentActiveElement)">新增尺寸</el-button>
@@ -162,28 +161,243 @@
 
               <el-divider>联动约束（当前配置区域）</el-divider>
               <el-card v-for="(rule, ruleIndex) in currentConstraints" :key="ruleIndex" class="rule-card" shadow="never">
-                <el-select v-model="rule.condition.targetId" placeholder="条件字段">
-                  <el-option v-for="candidate in currentBucketElements" :key="candidate.id" :label="candidate.name" :value="candidate.id" />
-                </el-select>
-                <el-select v-model="rule.condition.operator" style="margin-top: 6px">
-                  <el-option label="等于" value="==" />
-                  <el-option label="不等于" value="!=" />
-                  <el-option label="包含" value="in" />
-                </el-select>
-                <el-input v-model="rule.condition.value" placeholder="条件值" style="margin-top: 6px" />
-                <el-select v-model="rule.action.effect" style="margin-top: 6px">
-                  <el-option label="隐藏" value="hide" />
-                  <el-option label="禁用" value="disable" />
-                </el-select>
-                <el-button link type="danger" @click="removeConstraint(rule)">删除规则</el-button>
+                <div class="rule-header">
+                  <el-select v-model="rule.logic" size="small" style="width: 80px">
+                    <el-option label="且 (AND)" value="AND" />
+                    <el-option label="或 (OR)" value="OR" />
+                  </el-select>
+                  <span class="rule-tip">满足以下条件时：</span>
+                  <el-button link type="danger" @click="removeConstraint(rule)">删除规则</el-button>
+                </div>
+
+                <div v-for="(cond, condIndex) in rule.conditions" :key="condIndex" class="condition-row">
+                  <div class="cond-main">
+                    <el-select v-model="cond.targetId" placeholder="条件字段" size="small" @change="cond.value = ''">
+                      <el-option v-for="candidate in allElements" :key="candidate.id" :label="candidate.name" :value="candidate.id" />
+                    </el-select>
+                    <el-select v-model="cond.operator" size="small" style="width: 100px">
+                      <el-option label="等于" value="==" />
+                      <el-option label="不等于" value="!=" />
+                      <el-option label="包含" value="in" />
+                    </el-select>
+                    
+                    <!-- 条件值选择优化 -->
+                    <template v-if="cond.targetId">
+                      <el-select 
+                        v-if="getFieldOptions(cond.targetId).length" 
+                        v-model="cond.value" 
+                        placeholder="请选择值" 
+                        size="small"
+                        filterable
+                      >
+                        <el-option 
+                          v-for="opt in getFieldOptions(cond.targetId)" 
+                          :key="opt.value" 
+                          :label="opt.label" 
+                          :value="opt.value" 
+                        />
+                      </el-select>
+                      <el-input v-else v-model="cond.value" placeholder="条件值" size="small" />
+                    </template>
+                    <el-input v-else v-model="cond.value" placeholder="条件值" size="small" disabled />
+                  </div>
+                  <el-button link type="danger" :icon="Delete" @click="removeCondition(rule, condIndex)" v-if="rule.conditions.length > 1" />
+                </div>
+                
+                <div class="rule-footer">
+                  <el-button link type="primary" :icon="Plus" @click="addCondition(rule)">添加条件</el-button>
+                  <div class="action-wrap">
+                    <span class="action-label">执行：</span>
+                    <el-select v-model="rule.action.effect" size="small" style="width: 100px">
+                      <el-option label="隐藏" value="hide" />
+                      <el-option label="禁用" value="disable" />
+                    </el-select>
+                  </div>
+                </div>
               </el-card>
-              <el-button plain type="warning" @click="addConstraint">+ 添加约束</el-button>
+              <el-button plain type="warning" @click="addConstraint">+ 添加规则</el-button>
             </el-form>
           </div>
           <el-empty v-else :description="propertyEmptyDescription" />
+
+          <!-- 定价配置（始终可见） -->
+          <div v-if="isLeafNodeSelected" class="pricing-config">
+            <div class="panel-title">定价配置</div>
+            <div class="pricing-config-body">
+              <!-- 字段选项定价列表 -->
+              <div class="pricing-options-section">
+                <div class="pricing-label" style="margin-bottom: 6px">选项定价</div>
+                <el-empty v-if="!pricedElements.length" description="暂无选项可配置价格，请先在画布中添加字段和选项" :image-size="40" />
+                <div v-for="el in pricedElements" :key="el.id" class="po-element">
+                  <div class="po-el-header">
+                    <span class="po-el-name">{{ el.name }}</span>
+                    <span class="po-el-type">{{ el.type }}</span>
+                  </div>
+                  <!-- select/radio 选项 -->
+                  <div v-if="['select','radio'].includes(el.type)" class="po-options">
+                    <div v-for="(opt, oi) in el.options" :key="opt.id || oi" class="po-opt-row">
+                      <el-input v-model="opt.label" size="small" style="flex:1" placeholder="选项名" />
+                      <span class="po-opt-label">加价</span>
+                      <el-input-number v-model="opt.priceAdd" size="small" :step="0.01" :precision="2" style="width:80px" />
+                      <span class="po-opt-label">系数</span>
+                      <el-input-number v-model="opt.priceRatio" size="small" :min="0" :step="0.1" :precision="2" style="width:70px" />
+                      <el-button link type="danger" size="small" @click="el.options.splice(oi, 1)">删</el-button>
+                    </div>
+                    <el-button link type="primary" size="small" @click="addPricingOption(el)">+ 选项</el-button>
+                  </div>
+                  <!-- checkbox 选项 -->
+                  <div v-if="el.type === 'checkbox'" class="po-options">
+                    <div v-for="(opt, oi) in el.options" :key="opt.id || oi" class="po-opt-row">
+                      <el-input v-model="opt.label" size="small" style="flex:1" placeholder="选项名" />
+                      <span class="po-opt-label">加价</span>
+                      <el-input-number v-model="opt.priceAdd" size="small" :step="0.01" :precision="2" style="width:80px" />
+                      <span class="po-opt-label">系数</span>
+                      <el-input-number v-model="opt.priceRatio" size="small" :min="0" :step="0.1" :precision="2" style="width:70px" />
+                      <el-button link type="danger" size="small" @click="el.options.splice(oi, 1)">删</el-button>
+                    </div>
+                    <el-button link type="primary" size="small" @click="addPricingOption(el)">+ 选项</el-button>
+                  </div>
+                  <!-- size-mix 预设 -->
+                  <div v-if="el.type === 'size-mix'" class="po-options">
+                    <div v-for="(pre, pi) in el.presets" :key="pi" class="po-opt-row">
+                      <el-input v-model="pre.label" size="small" style="flex:1" placeholder="如90x54mm" />
+                      <span class="po-opt-label">加价</span>
+                      <el-input-number v-model="pre.priceAdd" size="small" :step="0.01" :precision="2" style="width:80px" />
+                      <el-button link type="danger" size="small" @click="el.presets.splice(pi, 1)">删</el-button>
+                    </div>
+                    <el-button link type="primary" size="small" @click="addPricingPreset(el)">+ 预设</el-button>
+                  </div>
+                </div>
+              </div>
+
+              <el-divider style="margin: 8px 0" />
+
+              <!-- 底价 -->
+              <div class="pricing-row">
+                <span class="pricing-label">基础底价 (¥)</span>
+                <el-input-number v-model="pricingBasePrice" :min="0" :step="0.01" :precision="2" controls-position="right" style="width:140px" />
+              </div>
+
+              <!-- 数量/款数 -->
+              <div class="pricing-row">
+                <span class="pricing-label">数量字段</span>
+                <el-select v-model="schemaData.pricing.quantityElId" placeholder="选择" clearable style="width:140px" @change="onQuantityFieldChange">
+                  <el-option v-for="el in numberElements" :key="el.id" :label="el.name || el.id" :value="el.id" />
+                </el-select>
+              </div>
+              <div class="pricing-row">
+                <span class="pricing-label">款数字段</span>
+                <el-select v-model="schemaData.pricing.modelsElId" placeholder="选择" clearable style="width:140px" @change="onModelsFieldChange">
+                  <el-option v-for="el in numberElements" :key="el.id" :label="el.name || el.id" :value="el.id" />
+                </el-select>
+              </div>
+
+              <el-divider style="margin: 8px 0" />
+
+              <!-- 计价公式 -->
+              <div class="formula-section">
+                <div class="formula-header">
+                  <span class="pricing-label">计价公式</span>
+                  <el-button link type="primary" size="small" @click="showVariableHelper = !showVariableHelper">
+                    {{ showVariableHelper ? '收起变量' : '变量帮助' }}
+                  </el-button>
+                </div>
+
+                <div v-if="showVariableHelper" class="variable-helper">
+                  <div class="var-group-title">内置变量</div>
+                  <el-tag
+                    v-for="v in builtinVars" :key="v"
+                    size="small" class="var-tag"
+                    @click="insertToFormula(v)"
+                  >{{ v }}</el-tag>
+                  <div class="var-group-title">字段变量（可加 .priceAdd / .priceRatio）</div>
+                  <el-tag
+                    v-for="v in elementVars" :key="v.id"
+                    size="small" class="var-tag"
+                    @click="insertToFormula(v.id)"
+                  >{{ v.label }}</el-tag>
+                  <div class="var-group-title">属性后缀</div>
+                  <el-tag
+                    v-for="suffix in varSuffixes" :key="suffix"
+                    size="small" class="var-tag var-suffix"
+                    @click="appendToFormula(suffix)"
+                  >{{ suffix }}</el-tag>
+                </div>
+
+                <el-input
+                  v-model="schemaData.pricing.formula"
+                  type="textarea"
+                  :rows="3"
+                  placeholder="如: (basePrice + optionTotal) * quantity * models"
+                  style="margin-top: 8px"
+                />
+                <div class="formula-summary">
+                  当前公式: <code>{{ formulaDisplay }}</code>
+                </div>
+              </div>
+
+              <el-divider style="margin: 10px 0" />
+
+              <!-- 定价步骤（回退逻辑） -->
+              <div class="operations-section">
+                <div class="formula-header">
+                  <span class="pricing-label">定价步骤（公式为空时使用）</span>
+                  <el-button link type="primary" size="small" @click="addPricingStep">+ 步骤</el-button>
+                </div>
+                <el-empty v-if="!pricingOps.length" description="无定价步骤" :image-size="40" />
+                <div
+                  v-for="(op, idx) in pricingOps"
+                  :key="op.id"
+                  class="operation-card"
+                >
+                  <div class="op-row">
+                    <el-switch v-model="op.enabled" size="small" />
+                    <el-input v-model="op.label" size="small" style="width: 110px" />
+                    <el-select v-model="op.type" size="small" style="width: 130px">
+                      <el-option label="基础底价" value="base" />
+                      <el-option label="选配加价汇总" value="option_add_sum" />
+                      <el-option label="乘算字段" value="multiply_number" />
+                    </el-select>
+                    <el-select
+                      v-if="op.type === 'multiply_number'"
+                      v-model="op.fieldId"
+                      placeholder="绑定字段"
+                      size="small"
+                      clearable
+                      style="width: 140px"
+                    >
+                      <el-option
+                        v-for="el in numberElements"
+                        :key="el.id"
+                        :label="el.name || el.id"
+                        :value="el.id"
+                      />
+                    </el-select>
+                    <el-button link :disabled="idx === 0" @click="movePricingOp(idx, -1)">上移</el-button>
+                    <el-button link :disabled="idx === pricingOps.length - 1" @click="movePricingOp(idx, 1)">下移</el-button>
+                    <el-button link type="danger" @click="removePricingOp(idx)">删除</el-button>
+                  </div>
+                </div>
+              </div>
+
+              <el-divider style="margin: 10px 0" />
+
+              <!-- 模拟验证 -->
+              <div class="sim-section">
+                <div class="formula-header">
+                  <span class="pricing-label">模拟验证</span>
+                  <el-button link type="primary" size="small" @click="simulatePricing">执行模拟</el-button>
+                </div>
+                <div v-if="simulationResult !== null" class="sim-result">
+                  <div class="sim-price">预计: <strong>¥{{ simulationResult }}</strong></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </el-aside>
       </el-container>
     </el-container>
+    </div>
 
     <el-drawer v-model="jsonDrawerVisible" title="Schema JSON" size="40%">
       <el-input type="textarea" :rows="30" :value="JSON.stringify(schemaData, null, 2)" readonly />
@@ -232,10 +446,12 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, Delete } from '@element-plus/icons-vue'
 import { getAdminCategoryTree, addCategory, updateCategory, deleteCategory } from '@/api/category'
-import { getCategorySchema, saveCategorySchema } from '@/api/schema'
+import { getCategorySchema, saveCategorySchema, adminPreviewCalculatePrice } from '@/api/schema'
 import { getMaterialList } from '@/api/material'
-import { SECTION_KEYS, createEmptyBucket, createEmptySection, getAllSchemaElements, getSectionElements, normalizeSchema } from '@/utils/schema'
+import { SECTION_KEYS, createEmptyBucket, createEmptySection, getAllSchemaElements, getSectionElements, normalizeSchema, syncPricingOperations } from '@/utils/schema'
+import AdminNavbar from '@/components/AdminNavbar.vue'
 
 const sectionKeys = SECTION_KEYS
 const defaultProps = { children: 'children', label: 'name' }
@@ -254,6 +470,9 @@ const categoryForm = ref({ id: null, name: '', parentId: null, sortOrder: 1 })
 const subElementEditorVisible = ref(false)
 const subElementEditingOpt = ref(null)
 const subElementEditList = ref([])
+
+const showVariableHelper = ref(false)
+const simulationResult = ref(null)
 
 const schemaData = ref(normalizeSchema(null))
 
@@ -300,7 +519,41 @@ const currentBucket = computed(() => {
 
 const currentBucketElements = computed(() => getSectionElements(currentBucket.value))
 const allElements = computed(() => getAllSchemaElements(schemaData.value))
+const numberElements = computed(() => allElements.value.filter(el => el.type === 'number'))
 const currentActiveElement = computed(() => allElements.value.find(element => element.id === currentActiveElementId.value))
+
+const pricingOps = computed({
+  get() { return schemaData.value.pricing?.operations || [] },
+  set(val) { if (schemaData.value.pricing) schemaData.value.pricing.operations = val }
+})
+
+const pricedElements = computed(() => {
+  return allElements.value.filter(el =>
+    ['select', 'radio', 'checkbox', 'size-mix'].includes(el.type)
+  )
+})
+
+// Single basePrice stored on common for simplicity
+const pricingBasePrice = computed({
+  get() { return schemaData.value.common?.basePrice ?? 0 },
+  set(v) {
+    if (!schemaData.value.common) schemaData.value.common = createEmptyBucket('', 0, 'common')
+    schemaData.value.common.basePrice = v
+  }
+})
+
+const builtinVars = ['basePrice', 'optionTotal', 'quantity', 'models']
+
+const elementVars = computed(() => allElements.value.map(el => {
+  const key = el.pricingMeta?.key || el.id
+  return { id: key, label: `${el.name || el.id} (${key})` }
+}))
+
+const varSuffixes = ['.priceAdd', '.priceRatio', '.width', '.height', '.area']
+
+const formulaDisplay = computed(() => {
+  return schemaData.value.pricing?.formula || '(无公式，将使用定价步骤)'
+})
 
 const currentConstraints = computed(() => {
   return (currentBucket.value?.constraints || []).filter(constraint => constraint?.action?.targetId === currentActiveElementId.value)
@@ -321,6 +574,86 @@ const propertyEmptyDescription = computed(() => {
 })
 
 const tabTitle = (key) => ({ materials: '物料', sizeGroup: '尺寸', crafts: '工艺', elements: '通用' }[key] || key)
+
+const onQuantityFieldChange = (val) => {
+  syncPricingOperations(schemaData.value.pricing)
+}
+
+const onModelsFieldChange = (val) => {
+  syncPricingOperations(schemaData.value.pricing)
+}
+
+const insertToFormula = (varName) => {
+  if (!schemaData.value.pricing) schemaData.value.pricing = {}
+  const cur = schemaData.value.pricing.formula || ''
+  schemaData.value.pricing.formula = cur + (cur && !cur.endsWith(' ') ? ' ' : '') + varName
+}
+
+const appendToFormula = (suffix) => {
+  if (!schemaData.value.pricing) schemaData.value.pricing = {}
+  schemaData.value.pricing.formula = (schemaData.value.pricing.formula || '').trimEnd() + suffix
+}
+
+const addPricingStep = () => {
+  if (!schemaData.value.pricing) schemaData.value.pricing = {}
+  if (!schemaData.value.pricing.operations) schemaData.value.pricing.operations = []
+  schemaData.value.pricing.operations.push({
+    id: 'op_' + Date.now(),
+    type: 'option_add_sum',
+    label: '新步骤',
+    enabled: true,
+    fieldId: null,
+    description: ''
+  })
+}
+
+const removePricingOp = (idx) => {
+  pricingOps.value.splice(idx, 1)
+}
+
+const movePricingOp = (idx, delta) => {
+  const list = pricingOps.value
+  const to = idx + delta
+  if (to < 0 || to >= list.length) return
+  const tmp = list[idx]
+  list[idx] = list[to]
+  list[to] = tmp
+}
+
+const addPricingOption = (el) => {
+  if (!el.options) el.options = []
+  el.options.push({ id: `${el.id}_opt_${Date.now()}`, label: '新选项', priceAdd: 0, priceRatio: 1 })
+}
+
+const addPricingPreset = (el) => {
+  if (!el.presets) el.presets = []
+  el.presets.push({ label: '', width: 0, height: 0, priceAdd: 0 })
+}
+
+const simulatePricing = async () => {
+  if (!activeCategory.value?.id) return
+  const testFormData = {}
+  allElements.value.forEach(el => {
+    if (el.type === 'checkbox') {
+      testFormData[el.id] = el.options?.[0]?.id ? [el.options[0].id] : []
+    } else if (el.type === 'number') {
+      testFormData[el.id] = el.defaultValue || 1
+    } else if (el.type === 'size-mix') {
+      const preset = el.presets?.[0]
+      testFormData[el.id] = preset?.label || ''
+      testFormData[el.id + '_w'] = preset?.width || 90
+      testFormData[el.id + '_h'] = preset?.height || 54
+    } else if (['select', 'radio'].includes(el.type)) {
+      testFormData[el.id] = el.options?.[0]?.id || ''
+    }
+  })
+  try {
+    const result = await adminPreviewCalculatePrice(activeCategory.value.id, { formData: testFormData })
+    simulationResult.value = result
+  } catch {
+    simulationResult.value = '模拟失败'
+  }
+}
 
 const ensureSchemaShape = () => {
   if (!schemaData.value || typeof schemaData.value !== 'object') schemaData.value = normalizeSchema(null)
@@ -361,7 +694,7 @@ const initEmptySchema = (categoryId) => {
     schemaVersion: 2,
     common: createEmptyBucket('', 0, 'common'),
     sections: [],
-    pricing: { basePrice: 0, quantityElId: null }
+    pricing: { quantityElId: null, modelsElId: null }
   })
   activeSectionId.value = ''
   currentActiveElementId.value = null
@@ -481,14 +814,16 @@ const normalizeSizePreset = (preset) => {
     const width = Number(preset.width) || 0
     const height = Number(preset.height) || 0
     const label = (preset.label || '').trim() || (width > 0 && height > 0 ? `${width}x${height}mm` : '')
-    return { label, width, height }
+    const priceAdd = Number(preset.priceAdd) || 0
+    return { label, width, height, priceAdd }
   }
   const parsed = parseSizeFromLabel(preset)
   if (!parsed) return null
   return {
     label: String(preset || '').trim() || `${parsed.width}x${parsed.height}mm`,
     width: parsed.width,
-    height: parsed.height
+    height: parsed.height,
+    priceAdd: 0
   }
 }
 
@@ -498,7 +833,7 @@ const normalizeElementForEditor = (element) => {
     const normalized = (Array.isArray(element.presets) ? element.presets : [])
       .map(normalizeSizePreset)
       .filter(Boolean)
-    element.presets = normalized.length ? normalized : [{ label: '90x54mm', width: 90, height: 54 }]
+    element.presets = normalized.length ? normalized : [{ label: '90x54mm', width: 90, height: 54, priceAdd: 0 }]
   }
 }
 
@@ -535,7 +870,7 @@ const addComponent = (componentDef) => {
   }
 
   if (componentDef.type === 'number') Object.assign(element, { min: 1, max: 1000, step: 1, presets: [] })
-  if (componentDef.type === 'size-mix') Object.assign(element, { presets: [{ label: '90x54mm', width: 90, height: 54 }] })
+  if (componentDef.type === 'size-mix') Object.assign(element, { presets: [{ label: '90x54mm', width: 90, height: 54, priceAdd: 0 }] })
 
   if (!currentBucket.value[targetTab]) currentBucket.value[targetTab] = []
   currentBucket.value[targetTab].push(element)
@@ -582,7 +917,7 @@ const removeOption = (element, index) => {
 const addSizePreset = (element) => {
   if (!canEditCurrentScope.value && !guardSectionWrite()) return
   normalizeElementForEditor(element)
-  element.presets.push({ label: '', width: 0, height: 0 })
+  element.presets.push({ label: '', width: 0, height: 0, priceAdd: 0 })
 }
 
 const removeSizePreset = (element, index) => {
@@ -625,6 +960,18 @@ const saveSubElements = () => {
   ElMessage.success('子字段已保存')
 }
 
+const getFieldOptions = (targetId) => {
+  const el = allElements.value.find(e => e.id === targetId)
+  if (!el) return []
+  if (el.type === 'size-mix') {
+    return (el.presets || []).map(p => ({ label: p.label, value: p.label }))
+  }
+  if (['select', 'radio', 'checkbox'].includes(el.type)) {
+    return (el.options || []).map(o => ({ label: o.label, value: o.id }))
+  }
+  return []
+}
+
 const addConstraint = () => {
   if (!canEditCurrentScope.value && !guardSectionWrite()) return
   if (!currentBucket.value || !currentActiveElementId.value) return ElMessage.warning('请先选中字段')
@@ -632,9 +979,19 @@ const addConstraint = () => {
   currentBucket.value.constraints.push({
     scope: isSectionMode.value ? 'section' : 'global',
     sectionId: isSectionMode.value ? effectiveSectionId.value : 'common',
-    condition: { targetId: '', operator: '==', value: '' },
+    logic: 'AND',
+    conditions: [{ targetId: '', operator: '==', value: '' }],
     action: { targetId: currentActiveElementId.value, effect: 'hide' }
   })
+}
+
+const addCondition = (rule) => {
+  if (!rule.conditions) rule.conditions = []
+  rule.conditions.push({ targetId: '', operator: '==', value: '' })
+}
+
+const removeCondition = (rule, index) => {
+  rule.conditions.splice(index, 1)
 }
 
 const removeConstraint = (rule) => {
@@ -657,10 +1014,11 @@ const cleanArray = (array) => {
         .map((preset) => ({
           label: (preset.label || '').trim() || `${preset.width}x${preset.height}mm`,
           width: preset.width,
-          height: preset.height
+          height: preset.height,
+          priceAdd: Number(preset.priceAdd) || 0
         }))
       if (!cleaned.presets.length) {
-        cleaned.presets = [{ label: '90x54mm', width: 90, height: 54 }]
+        cleaned.presets = [{ label: '90x54mm', width: 90, height: 54, priceAdd: 0 }]
       }
     }
     return cleaned
@@ -686,20 +1044,33 @@ const saveToServer = async () => {
   common.id = 'common'
   common.sortOrder = 0
   common.constraints = (common.constraints || []).filter((constraint) => {
-    return constraint?.condition?.targetId &&
-      validIds.has(constraint.condition.targetId) &&
-      constraint?.action?.targetId &&
-      validIds.has(constraint.action.targetId)
+    // 兼容旧数据并清洗
+    if (constraint.condition && !constraint.conditions) {
+      constraint.conditions = [constraint.condition]
+      delete constraint.condition
+    }
+    if (!constraint.logic) constraint.logic = 'AND'
+    
+    return constraint.conditions?.length && 
+           constraint.conditions.every(c => c.targetId && validIds.has(c.targetId)) &&
+           constraint?.action?.targetId &&
+           validIds.has(constraint.action.targetId)
   })
 
   const sections = orderedSections.value.map((section, index) => {
     const cleaned = cleanBucket(section)
     cleaned.sortOrder = index + 1
     cleaned.constraints = (cleaned.constraints || []).filter((constraint) => {
-      return constraint?.condition?.targetId &&
-        validIds.has(constraint.condition.targetId) &&
-        constraint?.action?.targetId &&
-        validIds.has(constraint.action.targetId)
+      if (constraint.condition && !constraint.conditions) {
+        constraint.conditions = [constraint.condition]
+        delete constraint.condition
+      }
+      if (!constraint.logic) constraint.logic = 'AND'
+
+      return constraint.conditions?.length && 
+             constraint.conditions.every(c => c.targetId && validIds.has(c.targetId)) &&
+             constraint?.action?.targetId &&
+             validIds.has(constraint.action.targetId)
     })
     return cleaned
   })
@@ -711,7 +1082,7 @@ const saveToServer = async () => {
     common,
     sections,
     constraints: Array.isArray(schemaData.value.constraints) ? schemaData.value.constraints : [],
-    pricing: schemaData.value.pricing || { basePrice: 0, quantityElId: null }
+    pricing: schemaData.value.pricing || { quantityElId: null, modelsElId: null }
   }
 
   await saveCategorySchema(payload.categoryId, payload)
@@ -730,14 +1101,14 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page { height: 100vh; overflow: hidden; }
-.layout { height: 100%; background: #eef0f3; overflow: hidden; }
-.top { height: 60px; display: flex; align-items: center; justify-content: space-between; background: #2b333e; color: #fff; padding: 0 16px; flex-shrink: 0; }
-.title { font-size: 18px; font-weight: 600; }
-.body { height: calc(100vh - 60px); min-height: 0; padding: 12px; gap: 12px; box-sizing: border-box; overflow: hidden; }
+.admin-page { height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: #f0f2f5; }
+.page-body { flex: 1; min-height: 0; overflow: hidden; }
+.layout { height: 100%; overflow: hidden; }
+.body { height: 100%; min-height: 0; padding: 12px; gap: 12px; box-sizing: border-box; overflow: hidden; }
 .panel { height: 100%; min-height: 0; background: #fff; border-radius: 8px; overflow: auto; }
 .panel-title { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-weight: 600; }
 .row { align-items: center; }
+.panel-actions { display: flex; align-items: center; gap: 8px; }
 .tree-node { width: 100%; display: flex; justify-content: space-between; align-items: center; }
 .group { padding: 8px; }
 .group-title { font-size: 12px; color: #909399; margin: 8px 0; }
@@ -759,4 +1130,154 @@ onMounted(async () => {
 .size-preset-row :deep(.el-input__wrapper) { min-height: 34px; }
 .size-preset-row :deep(.el-input__inner) { line-height: 22px; }
 .rule-card { margin-bottom: 8px; }
+
+/* 定价配置面板 */
+.pricing-config {
+  border-top: 2px solid #f0f0f0;
+  flex-shrink: 0;
+}
+.pricing-config-body {
+  padding: 12px;
+}
+.pricing-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.pricing-label {
+  font-size: 13px;
+  color: #606266;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.scope-badge {
+  font-size: 11px; font-weight: 400; color: #409eff;
+  background: #ecf5ff; border-radius: 3px; padding: 1px 6px; margin-left: 6px;
+}
+
+/* 选项定价列表 */
+.pricing-options-section {
+  background: #f5f7fa; border: 1px solid #e4e7ed; border-radius: 6px;
+  padding: 8px 10px; margin-bottom: 4px; max-height: 320px; overflow-y: auto;
+}
+.po-element {
+  border-bottom: 1px dashed #e4e7ed; padding: 6px 0;
+}
+.po-element:last-child { border-bottom: none; }
+.po-el-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+}
+.po-el-name { font-size: 13px; font-weight: 600; color: #303133; }
+.po-el-type { font-size: 10px; color: #909399; background: #f0f0f0; padding: 0 5px; border-radius: 3px; }
+.po-options { padding-left: 4px; }
+.po-opt-row {
+  display: flex; align-items: center; gap: 4px; margin-bottom: 4px;
+}
+.po-opt-label { font-size: 10px; color: #909399; flex-shrink: 0; }
+
+/* 公式编辑器 */
+.formula-section { margin-bottom: 4px; }
+.formula-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;
+}
+.formula-summary {
+  margin-top: 6px; font-size: 12px; color: #909399;
+}
+.formula-summary code {
+  color: #409eff; background: #ecf5ff; padding: 1px 6px; border-radius: 3px;
+}
+
+/* 变量帮助面板 */
+.variable-helper {
+  background: #f0f7ff; border: 1px solid #c6e2ff; border-radius: 6px;
+  padding: 8px 10px; margin-bottom: 8px; max-height: 180px; overflow-y: auto;
+}
+.var-group-title {
+  font-size: 11px; color: #409eff; font-weight: 600; margin: 6px 0 4px;
+}
+.var-group-title:first-child { margin-top: 0; }
+.var-tag { margin: 2px 4px 2px 0; cursor: pointer; }
+.var-tag:hover { opacity: 0.8; }
+.var-suffix { background: #fdf6ec; border-color: #e6a23c; color: #e6a23c; }
+
+/* 定价步骤 */
+.operations-section { margin-bottom: 4px; }
+.operation-card {
+  border: 1px solid #ebeef5; border-radius: 6px; padding: 8px 10px;
+  margin-bottom: 6px; background: #fafafa;
+}
+.op-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* 模拟验证 */
+.sim-section { margin-top: 4px; }
+.sim-result {
+  background: #f0f9eb; border: 1px solid #c2e7b0; border-radius: 6px;
+  padding: 10px 12px; margin-top: 8px;
+}
+.sim-price { font-size: 16px; color: #67c23a; }
+.sim-price strong { font-size: 20px; }
+.rule-card { 
+  margin-bottom: 16px; 
+  border: 1px solid #e4e7ed; 
+  border-radius: 8px;
+  background-color: #fafafa;
+  transition: all 0.3s;
+}
+.rule-card:hover {
+  border-color: #409eff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.rule-header { 
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  margin-bottom: 12px; 
+  padding-bottom: 10px; 
+  border-bottom: 1px solid #eee; 
+}
+.rule-tip { 
+  font-size: 13px; 
+  font-weight: 500;
+  color: #606266; 
+  flex: 1; 
+  margin-left: 10px; 
+}
+.condition-row { 
+  display: flex; 
+  align-items: flex-start; 
+  gap: 10px; 
+  margin-bottom: 12px; 
+  padding: 8px;
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+.cond-main { 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 6px; 
+}
+.rule-footer { 
+  margin-top: 12px; 
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  border-top: 1px solid #eee; 
+  padding-top: 10px; 
+}
+.action-wrap { 
+  display: flex; 
+  align-items: center; 
+  background: #ecf5ff;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid #d9ecff;
+  font-size: 13px; 
+}
+.action-label { 
+  color: #409eff; 
+  font-weight: bold;
+}
 </style>

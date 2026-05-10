@@ -25,7 +25,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
         // 商城端接口拦截（普通用户/管理员均可访问）
         registry.addInterceptor(mallInterceptor)
-                .addPathPatterns("/api/mall/**")
+                .addPathPatterns("/api/mall/**", "/api/user/**", "/api/help/feedback")
                 .excludePathPatterns("/api/auth/**");
     }
 }

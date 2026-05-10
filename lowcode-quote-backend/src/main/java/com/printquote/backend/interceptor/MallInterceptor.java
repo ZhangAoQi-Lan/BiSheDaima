@@ -23,7 +23,7 @@ public class MallInterceptor implements HandlerInterceptor {
             try {
                 // 只要能够成功解析 Token，即说明已经登录（普通用户或者管理员均可）
                 Claims claims = JwtUtils.parseToken(token);
-                request.setAttribute("userId", claims.get("userId"));
+                request.setAttribute("userId", ((Number) claims.get("userId")).longValue());
                 request.setAttribute("username", claims.get("username"));
                 request.setAttribute("role", claims.get("role"));
                 return true;

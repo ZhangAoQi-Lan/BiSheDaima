@@ -95,8 +95,10 @@ public class AuthController {
         Map<String, Object> response = new HashMap<>();
         response.put("token", token);
         response.put("username", user.getUsername());
+        response.put("nickname", user.getNickname());
+        response.put("avatar", user.getAvatar());
         response.put("role", user.getRole());
-        
+
         return Result.success(response);
     }
 

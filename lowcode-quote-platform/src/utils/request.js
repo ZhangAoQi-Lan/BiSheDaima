@@ -3,7 +3,8 @@ import { ElMessage } from 'element-plus'
 
 const service = axios.create({
   baseURL: 'http://localhost:8080/api', // 指向刚刚开放的 Spring Boot 端口
-  timeout: 10000 
+  //  baseURL: '/api',//服务器配置
+  timeout: 10000
 })
 
 import router from '@/router'
@@ -35,7 +36,7 @@ service.interceptors.response.use(
       router.push('/login')
       return Promise.reject(new Error(res.msg || 'Error'))
     }
-    
+
     // 我们原有的全局错误处理（忽略不需要特别拦的成功或其他结果）
     if (res.code !== undefined && res.code !== 200) {
       ElMessage.error(res.msg || res.message || 'Error')

@@ -18,10 +18,14 @@ public class User {
     private String password;
     
     private String role;
-    
+
     private String email;
-    
+
+    private String nickname;
+
+    private String avatar;
+
     private LocalDateTime createTime;
-    
+
     private LocalDateTime updateTime;
 }
