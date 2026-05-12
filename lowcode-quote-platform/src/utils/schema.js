@@ -27,6 +27,13 @@ export const DEFAULT_PRICING_OPERATIONS = [
     description: '汇总纸张、工艺、尺寸预设等选项中配置的附加金额。'
   },
   {
+    id: 'op_option_ratio',
+    type: 'option_ratio_multiply',
+    label: '选项系数乘算',
+    enabled: true,
+    description: '将已选项中的系数连乘，用于体现材质、印色或工艺对单价的倍率影响。'
+  },
+  {
     id: 'op_quantity',
     type: 'multiply_number',
     label: '按数量乘算',
@@ -83,12 +90,31 @@ export function ensureElementPricingMeta(element = {}) {
   return element
 }
 
+function ensurePricingOperationDefaults(pricing) {
+  if (!Array.isArray(pricing.operations)) {
+    pricing.operations = []
+  }
+
+  if (!pricing.operations.some(operation => operation.id === 'op_option_ratio' || operation.type === 'option_ratio_multiply')) {
+    pricing.operations.splice(2, 0, {
+      id: 'op_option_ratio',
+      type: 'option_ratio_multiply',
+      label: '选项系数乘算',
+      enabled: true,
+      fieldId: null,
+      description: '将已选项中的系数连乘，用于体现材质、印色或工艺对单价的倍率影响。'
+    })
+  }
+
+  return pricing
+}
+
 export function createDefaultPricing(rawPricing = {}) {
   const pricing = {
     quantityElId: rawPricing?.quantityElId ?? null,
     modelsElId: rawPricing?.modelsElId ?? null,
-    formula: rawPricing?.formula || '(basePrice + optionTotal) * quantity * models',
-    note: rawPricing?.note || '推荐直接使用公式计价；若未填写公式，则回退为下方结构化步骤。配置项价格由每个选项或尺寸预设中的 priceAdd 提供。',
+    formula: rawPricing?.formula || '(basePrice + optionTotal) * optionRatio * quantity * models',
+    note: rawPricing?.note || '推荐直接使用公式计价；若未填写公式，则回退为下方结构化步骤。priceAdd 用于固定加价，priceRatio 用于倍率乘算，optionRatio 表示当前所有已选项系数的连乘结果。',
     operations: []
   }
 
@@ -103,6 +129,7 @@ export function createDefaultPricing(rawPricing = {}) {
       fieldId: operation?.fieldId ?? null,
       description: operation?.description || ''
     }))
+    ensurePricingOperationDefaults(pricing)
   } else {
     pricing.operations = DEFAULT_PRICING_OPERATIONS.map((operation) => {
       if (operation.id === 'op_quantity') {
@@ -120,6 +147,7 @@ export function createDefaultPricing(rawPricing = {}) {
 
 export function syncPricingOperations(pricing) {
   if (!pricing || !Array.isArray(pricing.operations)) return pricing
+  ensurePricingOperationDefaults(pricing)
   pricing.operations.forEach((op) => {
     if (op.id === 'op_quantity') {
       op.enabled = !!pricing.quantityElId
@@ -189,7 +217,6 @@ export function normalizeSchema(raw, productNameFallback = '') {
     common.id = 'common'
     common.sortOrder = 0
 
-    // Migrate old pricing.basePrice → common.basePrice
     if (!common.basePrice && Number(source.pricing?.basePrice)) {
       common.basePrice = Number(source.pricing.basePrice)
     }
@@ -219,7 +246,6 @@ export function normalizeSchema(raw, productNameFallback = '') {
   })
   wrapped.constraints = Array.isArray(source.constraints) ? source.constraints : []
 
-  // Migrate old pricing.basePrice to the wrapped section
   if (Number(source.pricing?.basePrice)) {
     wrapped.basePrice = Number(source.pricing.basePrice)
   }

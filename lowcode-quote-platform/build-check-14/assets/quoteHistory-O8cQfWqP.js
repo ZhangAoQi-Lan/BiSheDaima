@@ -1,0 +1,1 @@
+import{s as e}from"./_plugin-vue_export-helper-BdOmaLug.js";import{j as o}from"./MallNavbar-CczVzNwq.js";const s=()=>({"X-Session-Id":o()});function i(){return e.get("/mall/quote-history",{headers:s()})}function n(t){return e.post("/mall/quote-history",t,{headers:s()})}export{i as g,n as s};

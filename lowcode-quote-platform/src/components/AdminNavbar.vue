@@ -18,11 +18,23 @@
         </el-menu-item>
         <el-menu-item index="/admin/material">
           <el-icon><Box /></el-icon>
-          <span>物料中心</span>
+          <span>材料中心</span>
         </el-menu-item>
         <el-menu-item index="/admin/orders">
           <el-icon><Document /></el-icon>
           <span>订单管理</span>
+        </el-menu-item>
+        <el-menu-item index="/admin/after-sale">
+          <el-icon><Service /></el-icon>
+          <span>售后管理</span>
+        </el-menu-item>
+        <el-menu-item index="/admin/stats">
+          <el-icon><DataAnalysis /></el-icon>
+          <span>数据统计</span>
+        </el-menu-item>
+        <el-menu-item index="/admin/site">
+          <el-icon><EditPen /></el-icon>
+          <span>站点内容</span>
         </el-menu-item>
         <el-menu-item index="/admin/users">
           <el-icon><User /></el-icon>
@@ -32,7 +44,7 @@
     </div>
     <div class="nav-right">
       <el-button :icon="Link" @click="router.push('/mall')" text>
-        回到商城
+        返回商城
       </el-button>
       <el-dropdown>
         <span class="user-area">
@@ -54,34 +66,37 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import {
   Setting, Grid, Box, Document, User, Link,
-  ArrowDown, SwitchButton
-} from '@element-plus/icons-vue';
-import { useUserStore } from '@/stores/user';
+  ArrowDown, SwitchButton, Service, DataAnalysis, EditPen
+} from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
 
-const router = useRouter();
-const route = useRoute();
-const userStore = useUserStore();
+const router = useRouter()
+const route = useRoute()
+const userStore = useUserStore()
 
 const activeMenu = computed(() => {
-  const p = route.path;
-  if (p.startsWith('/admin/orders')) return '/admin/orders';
-  if (p.startsWith('/admin/users')) return '/admin/users';
-  if (p.startsWith('/admin/material')) return '/admin/material';
-  return '/admin/category';
-});
+  const path = route.path
+  if (path.startsWith('/admin/material')) return '/admin/material'
+  if (path.startsWith('/admin/orders')) return '/admin/orders'
+  if (path.startsWith('/admin/after-sale')) return '/admin/after-sale'
+  if (path.startsWith('/admin/stats')) return '/admin/stats'
+  if (path.startsWith('/admin/site')) return '/admin/site'
+  if (path.startsWith('/admin/users')) return '/admin/users'
+  return '/admin/category'
+})
 
 const handleMenuSelect = (index) => {
-  router.push(index);
-};
+  router.push(index)
+}
 
 const handleLogout = () => {
-  userStore.clearAuth();
-  router.push('/login');
-};
+  userStore.clearAuth()
+  router.push('/login')
+}
 </script>
 
 <style scoped>
@@ -130,8 +145,8 @@ const handleLogout = () => {
   line-height: 52px;
   color: #b0b8c1;
   border-bottom: 2px solid transparent;
-  font-size: 13.5px;
-  padding: 0 18px;
+  font-size: 13px;
+  padding: 0 14px;
   transition: color 0.2s, border-color 0.2s;
 }
 .nav-menu :deep(.el-menu-item:hover) {

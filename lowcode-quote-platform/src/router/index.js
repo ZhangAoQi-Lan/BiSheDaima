@@ -62,6 +62,24 @@ const router = createRouter({
       meta: { requiresAuth: true, role: 'ADMIN' }
     },
     {
+      path: '/admin/after-sale',
+      name: 'admin-after-sale',
+      component: () => import('../views/admin/after-sale/index.vue'),
+      meta: { requiresAuth: true, role: 'ADMIN' }
+    },
+    {
+      path: '/admin/stats',
+      name: 'admin-stats',
+      component: () => import('../views/admin/stats/index.vue'),
+      meta: { requiresAuth: true, role: 'ADMIN' }
+    },
+    {
+      path: '/admin/site',
+      name: 'admin-site',
+      component: () => import('../views/admin/site/index.vue'),
+      meta: { requiresAuth: true, role: 'ADMIN' }
+    },
+    {
       path: '/admin/users',
       name: 'admin-users',
       component: () => import('../views/admin/users/index.vue'),

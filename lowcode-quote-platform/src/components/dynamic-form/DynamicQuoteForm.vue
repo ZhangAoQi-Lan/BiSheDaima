@@ -297,6 +297,15 @@
                   <span class="label">产品名称</span>
                   <span class="value">{{ schemaData.productName }}</span>
                 </div>
+                <div v-if="pricingSummary.length" class="price-breakdown">
+                  <div v-for="item in pricingSummary" :key="item.key" class="summary-item">
+                    <span class="label">{{ item.label }}</span>
+                    <span class="value">{{ formatBreakdownValue(item) }}</span>
+                  </div>
+                </div>
+                <div v-if="pricingWarnings.length" class="price-warnings">
+                  <div v-for="warning in pricingWarnings" :key="warning" class="warning-line">{{ warning }}</div>
+                </div>
                 <el-divider border-style="dashed" />
                 <div class="total-price-wrap">
                   <div class="total-label">预计总价（不含运费）</div>
@@ -339,6 +348,7 @@ import { ElMessage } from 'element-plus'
 import { QuestionFilled, Setting } from '@element-plus/icons-vue'
 import { getCategorySchema, adminPreviewCalculatePrice } from '@/api/schema'
 import { addCartItem } from '@/api/cart'
+import { saveQuoteHistory } from '@/api/quoteHistory'
 import { collectConstraintEffects, syncConstrainedFormState } from '@/utils/constraint-engine'
 import { getAllSchemaElements, getSectionElements, normalizeSchema } from '@/utils/schema'
 
@@ -350,6 +360,7 @@ const loading = ref(true)
 const schemaData = ref(normalizeSchema(null))
 const formData = ref({})
 const currentTotalPrice = ref('0.00')
+const priceDetails = ref(null)
 const priceChanged = ref(false)
 const hiddenElements = ref(new Set())
 const disabledElements = ref(new Set())
@@ -363,6 +374,14 @@ const craftDialogTitle = ref('')
 const craftCurrentOpt = ref(null)
 const craftFormData = ref({})
 const craftStoredData = ref({})
+
+const pricingSummary = computed(() => {
+  const breakdown = priceDetails.value?.breakdown || []
+  const keys = ['basePrice', 'optionTotal', 'optionRatio', 'quantity', 'models']
+  return breakdown.filter(item => keys.includes(item.key))
+})
+
+const pricingWarnings = computed(() => priceDetails.value?.warnings || [])
 
 const orderedSections = computed(() => {
   return [...(schemaData.value.sections || [])].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
@@ -418,6 +437,7 @@ const normalizeSizeMixElement = (element) => {
 const applySchemaData = (rawSchema) => {
   schemaData.value = normalizeSchema(rawSchema, '')
   initFormModel()
+  restoreReusableQuote()
   handleFormChange()
 }
 
@@ -486,14 +506,44 @@ const updatePrice = async () => {
 
   try {
     const response = await adminPreviewCalculatePrice(props.categoryId, { formData: formData.value })
-    if (response && response !== currentTotalPrice.value) {
+    const normalized = normalizePricingResponse(response)
+    if (normalized.totalPriceText !== currentTotalPrice.value) {
       priceChanged.value = true
-      currentTotalPrice.value = response
+      currentTotalPrice.value = normalized.totalPriceText
+      priceDetails.value = normalized
       setTimeout(() => {
         priceChanged.value = false
       }, 400)
+    } else {
+      priceDetails.value = normalized
     }
   } catch (_) {}
+}
+
+const normalizePricingResponse = (response) => {
+  if (response && typeof response === 'object') {
+    return {
+      totalPrice: Number(response.totalPrice ?? 0),
+      totalPriceText: response.totalPriceText || Number(response.totalPrice ?? 0).toFixed(2),
+      breakdown: Array.isArray(response.breakdown) ? response.breakdown : [],
+      warnings: Array.isArray(response.warnings) ? response.warnings : []
+    }
+  }
+
+  const value = Number(response || 0)
+  return {
+    totalPrice: value,
+    totalPriceText: value.toFixed(2),
+    breakdown: [],
+    warnings: []
+  }
+}
+
+const formatBreakdownValue = (item) => {
+  if (['optionRatio', 'quantity', 'models'].includes(item.key)) {
+    return `×${Number(item.value || 0).toFixed(2)}`
+  }
+  return `¥${Number(item.value || 0).toFixed(2)}`
 }
 
 const checkConstraints = () => {
@@ -580,8 +630,46 @@ const isCraftConfigured = (option) => !!craftStoredData.value[option.id]
 const isHidden = (id) => hiddenElements.value.has(id)
 const isDisabled = (id) => disabledElements.value.has(id)
 
-const submitQuote = () => {
-  ElMessage.success(`订单已提交，总计：¥${currentTotalPrice.value}`)
+const restoreReusableQuote = () => {
+  const cached = localStorage.getItem('quote_reuse_payload')
+  if (!cached) return
+  try {
+    const payload = JSON.parse(cached)
+    if (String(payload.categoryId) !== String(props.categoryId)) return
+    if (payload.rawFormData && typeof payload.rawFormData === 'object') {
+      formData.value = { ...formData.value, ...payload.rawFormData }
+    }
+    localStorage.removeItem('quote_reuse_payload')
+  } catch (_) {
+    localStorage.removeItem('quote_reuse_payload')
+  }
+}
+
+const persistQuoteHistory = async () => {
+  await saveQuoteHistory({
+    categoryId: props.categoryId,
+    productName: schemaData.value.productName,
+    formData: buildReadableFormData(),
+    rawFormData: JSON.parse(JSON.stringify(formData.value)),
+    price: currentTotalPrice.value
+  })
+}
+
+const submitQuote = async () => {
+  try {
+    await persistQuoteHistory()
+    await addCartItem({
+      categoryId: props.categoryId,
+      productName: schemaData.value.productName,
+      formData: buildReadableFormData(),
+      price: currentTotalPrice.value
+    })
+    window.dispatchEvent(new CustomEvent('cart-updated'))
+    window.dispatchEvent(new CustomEvent('checkout-now'))
+    ElMessage.success('已加入购物车，请确认收货地址后提交订单')
+  } catch (_) {
+    ElMessage.error('立即结算失败，请稍后重试')
+  }
 }
 
 const buildReadableFormData = () => {
@@ -674,16 +762,17 @@ const addToCart = async () => {
   if (!schemaData.value) return
 
   try {
+    await persistQuoteHistory()
     await addCartItem({
       categoryId: props.categoryId,
       productName: schemaData.value.productName,
       formData: buildReadableFormData(),
       price: currentTotalPrice.value
     })
-    ElMessage.success('已加入暂存箱，10 分钟内有效，请及时处理。')
+    ElMessage.success('已加入购物车，10 分钟内有效')
     window.dispatchEvent(new CustomEvent('cart-updated'))
   } catch (_) {
-    ElMessage.error('加入暂存箱失败，请重试')
+    ElMessage.error('加入购物车失败，请重试')
   }
 }
 
@@ -744,6 +833,25 @@ watch(
 .pricing-body { padding: 22px 20px; background: #fff; }
 .summary-item { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 10px; color: var(--gray-500); }
 .summary-item .value { font-weight: 600; color: var(--gray-600); }
+.price-breakdown {
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+}
+.price-breakdown .summary-item:last-child { margin-bottom: 0; }
+.price-warnings {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+}
+.warning-line {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #9a3412;
+}
 .total-price-wrap { text-align: right; margin-top: 16px; padding-top: 14px; border-top: 2px dashed var(--gray-200); }
 .total-label { font-size: 12px; color: var(--gray-400); text-transform: uppercase; letter-spacing: .6px; }
 .price-val { color: var(--color-primary); font-size: 22px; font-weight: 800; margin-top: 4px; }

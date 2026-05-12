@@ -3,9 +3,11 @@ package com.printquote.backend.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.printquote.backend.entity.OrderInfo;
 import com.printquote.backend.entity.OrderItem;
+import com.printquote.backend.entity.OrderTimeline;
 import com.printquote.backend.entity.User;
 import com.printquote.backend.mapper.OrderInfoMapper;
 import com.printquote.backend.mapper.OrderItemMapper;
+import com.printquote.backend.mapper.OrderTimelineMapper;
 import com.printquote.backend.mapper.UserMapper;
 import com.printquote.backend.vo.Result;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +30,9 @@ public class AdminOrderController {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private OrderTimelineMapper orderTimelineMapper;
 
     @GetMapping("/list")
     public Result<List<Map<String, Object>>> listOrders(
@@ -105,6 +110,11 @@ public class AdminOrderController {
                         .eq(OrderItem::getOrderId, id)
                         .orderByAsc(OrderItem::getCreateTime)
         );
+        List<OrderTimeline> timeline = orderTimelineMapper.selectList(
+                new LambdaQueryWrapper<OrderTimeline>()
+                        .eq(OrderTimeline::getOrderId, id)
+                        .orderByAsc(OrderTimeline::getCreateTime)
+        );
 
         // 获取用户名
         String username = "匿名用户";
@@ -117,6 +127,7 @@ public class AdminOrderController {
         result.put("order", order);
         result.put("items", items);
         result.put("username", username);
+        result.put("timeline", timeline);
         return Result.success(result);
     }
 
@@ -134,9 +145,71 @@ public class AdminOrderController {
         if (order == null) {
             return Result.error("订单不存在");
         }
+        if (Objects.equals(order.getStatus(), newStatus)) {
+            return Result.error("订单状态未发生变化");
+        }
+        if (!canTransit(order.getStatus(), newStatus)) {
+            return Result.error("当前订单状态不允许变更为目标状态");
+        }
         order.setStatus(newStatus);
         order.setUpdateTime(LocalDateTime.now());
         orderInfoMapper.updateById(order);
+        addTimeline(order.getId(), newStatus, statusTitle(newStatus), body.get("note"), "ADMIN");
         return Result.success(null);
+    }
+
+    @PutMapping("/{id}/production")
+    public Result<OrderInfo> updateProductionInfo(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        OrderInfo order = orderInfoMapper.selectById(id);
+        if (order == null) {
+            return Result.error("订单不存在");
+        }
+
+        order.setProductionNote(emptyToNull(body.get("productionNote")));
+        order.setTrackingNo(emptyToNull(body.get("trackingNo")));
+        order.setArtworkName(emptyToNull(body.get("artworkName")));
+        order.setArtworkUrl(emptyToNull(body.get("artworkUrl")));
+        order.setUpdateTime(LocalDateTime.now());
+        orderInfoMapper.updateById(order);
+        addTimeline(order.getId(), order.getStatus(), "生产信息已更新", "管理员维护了稿件、物流或生产备注信息", "ADMIN");
+        return Result.success(order);
+    }
+
+    private boolean canTransit(String currentStatus, String newStatus) {
+        Map<String, Set<String>> transitions = new HashMap<>();
+        transitions.put("PENDING", Set.of("PROCESSED", "CANCELLED"));
+        transitions.put("PROCESSED", Set.of("SHIPPED", "COMPLETED"));
+        transitions.put("SHIPPED", Set.of("COMPLETED"));
+        transitions.put("COMPLETED", Collections.emptySet());
+        transitions.put("CANCELLED", Collections.emptySet());
+        return transitions.getOrDefault(currentStatus, Collections.emptySet()).contains(newStatus);
+    }
+
+    private void addTimeline(Long orderId, String status, String title, String description, String operatorType) {
+        OrderTimeline timeline = new OrderTimeline();
+        timeline.setOrderId(orderId);
+        timeline.setStatus(status);
+        timeline.setTitle(title);
+        timeline.setDescription(StringUtils.hasText(description) ? description : title);
+        timeline.setOperatorType(operatorType);
+        timeline.setCreateTime(LocalDateTime.now());
+        orderTimelineMapper.insert(timeline);
+    }
+
+    private String statusTitle(String status) {
+        return switch (status) {
+            case "PROCESSED" -> "订单已确认处理";
+            case "SHIPPED" -> "订单已发货";
+            case "COMPLETED" -> "订单已完成";
+            case "CANCELLED" -> "订单已取消";
+            default -> "订单状态已更新";
+        };
+    }
+
+    private String emptyToNull(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return value.trim();
     }
 }

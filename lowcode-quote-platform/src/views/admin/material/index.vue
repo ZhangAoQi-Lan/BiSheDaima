@@ -10,7 +10,7 @@
 
         <el-tabs v-model="activeTab" class="material-tabs">
           <el-tab-pane label="物料纸张库 (materials)" name="materials" />
-          <el-tab-pane label="特种尺寸规则 (sizeGroup)" name="sizeGroup" />
+          <el-tab-pane label="特种尺寸预设 (sizeGroup)" name="sizeGroup" />
           <el-tab-pane label="印后工艺组 (crafts)" name="crafts" />
           <el-tab-pane label="通用元素层 (elements)" name="elements" />
         </el-tabs>
@@ -35,7 +35,7 @@
         <el-form-item label="归属架构层级">
           <el-select v-model="materialForm.category">
             <el-option label="物料纸张库 (materials)" value="materials" />
-            <el-option label="特种尺寸规则 (sizeGroup)" value="sizeGroup" />
+            <el-option label="特种尺寸预设 (sizeGroup)" value="sizeGroup" />
             <el-option label="印后工艺组 (crafts)" value="crafts" />
             <el-option label="通用元素层 (elements)" value="elements" />
           </el-select>

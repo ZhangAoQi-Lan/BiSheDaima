@@ -1,0 +1,1 @@
+import{s as t}from"./_plugin-vue_export-helper-iFh-23u2.js";function i(){return t.get("/admin/material/list")}function r(e){return t.post("/admin/material",e)}function n(e){return t.delete(`/admin/material/${e}`)}export{n as d,i as g,r as s};

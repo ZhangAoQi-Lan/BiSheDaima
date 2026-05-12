@@ -1,0 +1,1 @@
+import{s as t}from"./_plugin-vue_export-helper-IjbAltqV.js";function i(){return t.get("/mall/site/content")}function o(){return t.get("/admin/site/content")}function s(n){return t.put("/admin/site/content",n)}export{o as a,i as g,s};

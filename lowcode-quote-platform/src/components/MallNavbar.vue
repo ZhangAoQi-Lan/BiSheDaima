@@ -1,618 +1,800 @@
 <template>
   <header class="mall-navbar">
     <div class="nav-inner">
-      <div class="logo" @click="router.push('/mall')">
-        <div class="logo-icon">
-          <el-icon :size="22" color="#fff"><Printer /></el-icon>
+      <div class="brand" @click="router.push('/mall')">
+        <div class="brand-mark">
+          <el-icon :size="18"><Printer /></el-icon>
         </div>
-        <span class="logo-text">印刷包装在线报价</span>
+        <div class="brand-copy">
+          <span class="brand-title">印刷包装在线报价</span>
+          <span class="brand-sub">Printing Quote Platform</span>
+        </div>
       </div>
 
       <nav class="nav-links">
-        <router-link to="/mall" class="nav-link" exact-active-class="active">
-          <span>产品大厅</span>
-          <div class="nav-underline" />
-        </router-link>
-        <router-link to="/mall/orders" class="nav-link" active-class="active">
-          <span>我的订单</span>
-          <div class="nav-underline" />
-        </router-link>
-        <router-link to="/mall/help" class="nav-link" active-class="active">
-          <span>帮助中心</span>
-          <div class="nav-underline" />
-        </router-link>
+        <router-link to="/mall" class="nav-link">产品大厅</router-link>
+        <router-link to="/mall/orders" class="nav-link">我的订单</router-link>
+        <router-link to="/mall/help" class="nav-link">帮助中心</router-link>
+        <router-link to="/mall/profile" class="nav-link">个人中心</router-link>
       </nav>
 
       <div class="nav-actions">
-        <div class="cart-btn-wrap">
-          <el-badge :value="cartItems.length" :hidden="cartItems.length === 0" :max="99">
-            <button class="cart-btn" @click="drawerVisible = true">
-              <el-icon :size="20"><ShoppingCart /></el-icon>
-              <span v-if="cartItems.length" class="cart-count-bubble">{{ cartItems.length }}</span>
-            </button>
-          </el-badge>
-        </div>
+        <el-badge :value="cartItems.length" :hidden="cartItems.length === 0">
+          <button class="icon-btn cart-btn" @click="openDrawer">
+            <el-icon :size="18"><ShoppingCart /></el-icon>
+          </button>
+        </el-badge>
 
-        <template v-if="userStore.token">
-          <el-dropdown trigger="click">
-            <button class="user-btn">
-              <el-avatar :size="30" :src="userStore.userInfo?.avatar" icon="UserFilled" />
-              <span class="user-name">{{ userStore.userInfo?.nickname || userStore.userInfo?.username }}</span>
-              <el-icon :size="12" class="user-chevron"><ArrowDown /></el-icon>
-            </button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item @click="router.push('/mall/profile')">
-                  <el-icon><User /></el-icon>
-                  个人设置
-                </el-dropdown-item>
-                <el-dropdown-item divided @click="handleLogout">
-                  <el-icon><SwitchButton /></el-icon>
-                  退出登录
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </template>
-        <template v-else>
-          <button class="login-btn" @click="router.push('/login')">登录 / 注册</button>
-        </template>
+        <el-dropdown>
+          <button class="user-pill">
+            <el-avatar :size="34" :src="userStore.userInfo?.avatar" icon="UserFilled" />
+            <div class="user-copy">
+              <span class="user-label">{{ userStore.userInfo?.nickname || userStore.userInfo?.username }}</span>
+              <span class="user-role">已登录</span>
+            </div>
+            <el-icon :size="12"><ArrowDown /></el-icon>
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item @click="router.push('/mall/profile')">个人中心</el-dropdown-item>
+              <el-dropdown-item divided @click="logout">退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
   </header>
 
   <el-drawer v-model="drawerVisible" direction="rtl" size="460px" :with-header="false">
-    <div class="cart-drawer-wrap">
-      <!-- 自定义头部 -->
-      <div class="cart-drawer-head">
-        <div class="drawer-head-left">
-          <div class="head-icon">
-            <el-icon :size="18" color="#fff"><ShoppingCart /></el-icon>
-          </div>
-          <span class="head-title">暂存箱</span>
-          <span class="head-count" v-if="cartItems.length">{{ cartItems.length }} 项</span>
+    <div class="drawer-wrap">
+      <div class="drawer-header">
+        <div>
+          <div class="drawer-title">购物车 / 暂存箱</div>
+          <div class="drawer-subtitle">当前共 {{ cartItems.length }} 项报价内容</div>
         </div>
-        <el-button link @click="drawerVisible = false">
-          <el-icon :size="18"><Close /></el-icon>
-        </el-button>
+        <el-button link @click="drawerVisible = false">关闭</el-button>
       </div>
 
-      <!-- 空状态 -->
-      <div v-if="cartItems.length === 0" class="cart-empty-premium">
-        <div class="empty-gradient-bg">
-          <div class="empty-icon-circle">
-            <el-icon :size="44" color="#c0c4cc"><ShoppingCart /></el-icon>
-          </div>
-          <h3>暂存箱空空如也</h3>
-          <p>快去定制您的专属印刷品吧</p>
-          <el-button type="danger" round @click="drawerVisible = false; router.push('/mall')">
-            去产品大厅选购
-          </el-button>
-        </div>
+      <div v-if="cartItems.length === 0" class="empty-box">
+        <el-empty description="还没有加入购物车的报价商品" />
       </div>
 
-      <!-- 列表 -->
-      <div v-else class="cart-drawer-list">
-        <div v-for="item in cartItems" :key="item.id" class="cart-premium-card">
+      <div v-else class="cart-list">
+        <div v-for="item in cartItems" :key="item.id" class="cart-card">
           <div class="card-top">
-            <div class="card-product-name">{{ item.productName }}</div>
-            <el-button link type="danger" :icon="Delete" size="small" @click="handleRemove(item.id)" />
-          </div>
-
-          <div class="card-countdown" :class="{ urgent: getRemaining(item) < 60 }">
-            <el-icon :size="13"><Timer /></el-icon>
-            <span>{{ formatRemaining(item) }} 后失效</span>
-          </div>
-
-          <!-- 核心规格（始终展示） -->
-          <div class="card-core-specs">
-            <span v-for="(spec, idx) in getCoreSpecs(item)" :key="idx" class="spec-chip">
-              {{ spec }}
-            </span>
-          </div>
-
-          <!-- 展开/收起完整配置 -->
-          <transition name="expand-fade">
-            <div v-if="expandedItemId === item.id" class="card-full-config">
-              <template v-for="(val, key) in item.formData" :key="key">
-                <template v-if="isPlainObject(val)">
-                  <div class="cfg-section">{{ key }}</div>
-                  <div v-for="(sv, sk) in val" :key="sk" class="cfg-row">
-                    <span>{{ sk }}</span>
-                    <span>{{ Array.isArray(sv) ? sv.join('、') : sv }}</span>
-                  </div>
-                </template>
-                <div v-else class="cfg-row">
-                  <span>{{ key }}</span>
-                  <span>{{ Array.isArray(val) ? val.join('、') : val }}</span>
-                </div>
-              </template>
+            <div>
+              <div class="product-name">{{ item.productName }}</div>
+              <div class="expire-text">剩余保留时间 {{ formatRemaining(item) }}</div>
             </div>
-          </transition>
+            <el-button link type="danger" @click="removeItem(item.id)">删除</el-button>
+          </div>
+
+          <div class="spec-list">
+            <span v-for="(spec, index) in getSpecs(item)" :key="index" class="spec-chip">{{ spec }}</span>
+          </div>
 
           <div class="card-bottom">
-            <el-button link type="primary" size="small" @click="toggleItemExpand(item.id)">
-              {{ expandedItemId === item.id ? '收起详情' : '配置详情' }}
-              <el-icon :class="{ rotated: expandedItemId === item.id }"><ArrowDown /></el-icon>
-            </el-button>
-            <span class="card-price">¥ <strong>{{ item.price }}</strong></span>
+            <span class="price-text">¥{{ item.price }}</span>
           </div>
         </div>
       </div>
 
-      <!-- 底部结算（毛玻璃） -->
-      <div class="cart-drawer-foot" v-if="cartItems.length > 0">
-        <div class="foot-summary">
-          <span>共 {{ cartItems.length }} 项</span>
-          <span class="foot-total">合计 <strong>¥ {{ totalPrice }}</strong></span>
+      <div v-if="cartItems.length > 0" class="drawer-footer">
+        <div class="footer-total">
+          <span>合计</span>
+          <strong>¥{{ totalPrice }}</strong>
         </div>
-        <div class="foot-actions">
-          <el-button class="clear-all-btn" @click="handleClearAll">清空</el-button>
-          <button class="submit-order-btn" :disabled="submitting" @click="handleSubmitOrders">
-            <span v-if="submitting" class="btn-loading" />
-            <span v-else>提交全部订单</span>
-          </button>
+        <div class="footer-actions">
+          <el-button @click="clearAll">清空</el-button>
+          <el-button type="primary" :loading="submitting" @click="openCheckout">去结算</el-button>
         </div>
       </div>
     </div>
   </el-drawer>
+
+  <el-dialog v-model="checkoutVisible" title="确认订单" width="700px">
+    <div class="checkout-section">
+      <div class="section-header">
+        <div class="section-title">选择收货地址</div>
+        <el-button type="primary" plain @click="openAddressDialog()">新增地址</el-button>
+      </div>
+
+      <div v-if="addresses.length === 0" class="address-empty">
+        <el-empty description="还没有收货地址，先在这里新增即可" :image-size="72" />
+        <div class="empty-actions">
+          <el-button type="primary" @click="openAddressDialog()">新增地址</el-button>
+          <el-button @click="router.push('/mall/profile')">去个人中心管理</el-button>
+        </div>
+      </div>
+
+      <div v-else class="address-list">
+        <label
+          v-for="address in addresses"
+          :key="address.id"
+          class="address-card"
+          :class="{ active: selectedAddressId === address.id }"
+        >
+          <input v-model="selectedAddressId" type="radio" :value="address.id" />
+          <div class="address-content">
+            <div class="address-head">
+              <span>{{ address.receiverName }}</span>
+              <span>{{ address.phone }}</span>
+              <el-tag v-if="address.isDefault" size="small" type="success">默认</el-tag>
+            </div>
+            <div class="address-body">{{ formatAddress(address) }}</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <el-form label-position="top">
+      <el-form-item label="设计稿名称">
+        <el-input
+          v-model="artworkName"
+          maxlength="120"
+          placeholder="例如：名片正反面设计稿.pdf"
+        />
+      </el-form-item>
+      <el-form-item label="设计稿链接">
+        <el-input
+          v-model="artworkUrl"
+          maxlength="500"
+          placeholder="可填写网盘链接、MinIO 文件地址或留空后续补充"
+        />
+      </el-form-item>
+      <el-form-item label="订单备注">
+        <el-input
+          v-model="remark"
+          type="textarea"
+          :rows="3"
+          placeholder="如有特殊工艺、交付要求可在此补充"
+        />
+      </el-form-item>
+    </el-form>
+
+    <template #footer>
+      <el-button @click="checkoutVisible = false">取消</el-button>
+      <el-button type="primary" :loading="submitting" @click="submitOrder">提交订单</el-button>
+    </template>
+  </el-dialog>
+
+  <el-dialog v-model="addressDialogVisible" title="新增地址" width="680px" destroy-on-close>
+    <el-form label-position="top" class="address-form">
+      <el-row :gutter="16">
+        <el-col :span="12">
+          <el-form-item label="收货人">
+            <el-input v-model="addressForm.receiverName" maxlength="30" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="联系电话">
+            <el-input v-model="addressForm.phone" maxlength="20" />
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <div class="geo-row">
+        <div class="geo-tip">可直接手填地址，也可以用当前位置自动回填省、市、区。</div>
+        <el-button text type="primary" :loading="locating" @click="fillCurrentLocation">定位当前位置</el-button>
+      </div>
+
+      <el-row :gutter="16">
+        <el-col :span="8">
+          <el-form-item label="省">
+            <el-input v-model="addressForm.province" maxlength="30" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
+          <el-form-item label="市">
+            <el-input v-model="addressForm.city" maxlength="30" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
+          <el-form-item label="区">
+            <el-input v-model="addressForm.district" maxlength="30" />
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <el-form-item label="详细地址">
+        <el-input
+          v-model="addressForm.detailAddress"
+          type="textarea"
+          :rows="3"
+          placeholder="街道、门牌号、楼栋房间号等"
+        />
+      </el-form-item>
+
+      <el-checkbox v-model="addressForm.isDefault">设为默认地址</el-checkbox>
+    </el-form>
+
+    <template #footer>
+      <el-button @click="addressDialogVisible = false">取消</el-button>
+      <el-button type="primary" :loading="savingAddress" @click="saveAddress">保存</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from "vue";
-import { useRouter } from "vue-router";
-import {
-  Printer,
-  ShoppingCart,
-  Delete,
-  Timer,
-  ArrowDown,
-  SwitchButton,
-  User,
-  UserFilled,
-  Close,
-} from "@element-plus/icons-vue";
-import { ElMessage, ElMessageBox } from "element-plus";
-import {
-  getCartItems,
-  deleteCartItem,
-  clearCart as clearCartApi,
-} from "@/api/cart";
-import { createOrder } from "@/api/order";
-import { useUserStore } from "@/stores/user";
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowDown, Printer, ShoppingCart } from '@element-plus/icons-vue'
+import { getCartItems, deleteCartItem, clearCart as clearCartApi } from '@/api/cart'
+import { createOrder } from '@/api/order'
+import { createAddress, getAddresses } from '@/api/address'
+import { reverseGeocode } from '@/api/location'
+import { useUserStore } from '@/stores/user'
 
-const router = useRouter();
-const userStore = useUserStore();
-const drawerVisible = ref(false);
-const cartItems = ref([]);
-const now = ref(Date.now());
-const submitting = ref(false);
-const expandedItemId = ref(null);
+const router = useRouter()
+const userStore = useUserStore()
 
-const totalPrice = computed(() =>
-  cartItems.value
-    .reduce((sum, i) => sum + parseFloat(i.price || 0), 0)
-    .toFixed(2),
-);
-const isPlainObject = (value) =>
-  value !== null && typeof value === "object" && !Array.isArray(value);
+const drawerVisible = ref(false)
+const checkoutVisible = ref(false)
+const addressDialogVisible = ref(false)
+const cartItems = ref([])
+const addresses = ref([])
+const selectedAddressId = ref(null)
+const remark = ref('')
+const artworkName = ref('')
+const artworkUrl = ref('')
+const submitting = ref(false)
+const savingAddress = ref(false)
+const locating = ref(false)
+const now = ref(Date.now())
 
-const toggleItemExpand = (id) => {
-  expandedItemId.value = expandedItemId.value === id ? null : id;
-};
+const addressForm = reactive({
+  receiverName: '',
+  phone: '',
+  province: '',
+  city: '',
+  district: '',
+  detailAddress: '',
+  isDefault: false
+})
 
-const getCoreSpecs = (item) => {
-  if (!item.formData) return [];
-  const specs = [];
-  const extract = (obj) => {
-    for (const [k, v] of Object.entries(obj)) {
-      if (isPlainObject(v)) {
-        extract(v);
-      } else if (!Array.isArray(v) && typeof v !== 'object') {
-        const label = String(k).length > 8 ? String(k).slice(0, 6) + '..' : String(k);
-        specs.push(`${label}: ${v}`);
-      }
-    }
-  };
-  extract(item.formData);
-  return specs.slice(0, 4);
-};
+const totalPrice = computed(() => cartItems.value.reduce((sum, item) => sum + Number(item.price || 0), 0).toFixed(2))
 
-const getRemaining = (item) =>
-  Math.max(
-    0,
-    Math.floor((new Date(item.expiresAt).getTime() - now.value) / 1000),
-  );
-const formatRemaining = (item) => {
-  const s = getRemaining(item);
-  return `${Math.floor(s / 60)
-    .toString()
-    .padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
-};
+const resetAddressForm = () => {
+  Object.assign(addressForm, {
+    receiverName: '',
+    phone: '',
+    province: '',
+    city: '',
+    district: '',
+    detailAddress: '',
+    isDefault: addresses.value.length === 0
+  })
+}
+
+const openDrawer = async () => {
+  await fetchCart()
+  drawerVisible.value = true
+}
 
 const fetchCart = async () => {
-  try {
-    cartItems.value = (await getCartItems()) || [];
-  } catch {}
-};
+  cartItems.value = await getCartItems()
+}
 
-const handleRemove = async (id) => {
-  await deleteCartItem(id);
-  cartItems.value = cartItems.value.filter((i) => i.id !== id);
-};
+const fetchAddresses = async () => {
+  addresses.value = await getAddresses()
+  const defaultAddress = addresses.value.find(item => item.isDefault) || addresses.value[0]
+  selectedAddressId.value = defaultAddress?.id || null
+}
 
-const handleClearAll = () => {
-  ElMessageBox.confirm("确认清空所有暂存记录？", "提示", {
-    type: "warning",
-  }).then(async () => {
-    await clearCartApi();
-    cartItems.value = [];
-    ElMessage.success("已清空暂存箱");
-  });
-};
+const removeItem = async (id) => {
+  await deleteCartItem(id)
+  cartItems.value = cartItems.value.filter(item => item.id !== id)
+  window.dispatchEvent(new CustomEvent('cart-updated'))
+}
 
-const handleSubmitOrders = async () => {
-  if (cartItems.value.length === 0) {
-    ElMessage.warning("暂存箱为空，请先配置报价并加入暂存箱");
-    return;
+const clearAll = async () => {
+  await ElMessageBox.confirm('确认清空购物车中的所有报价商品吗？', '提示', { type: 'warning' })
+  await clearCartApi()
+  cartItems.value = []
+  window.dispatchEvent(new CustomEvent('cart-updated'))
+}
+
+const openCheckout = async () => {
+  await fetchAddresses()
+  checkoutVisible.value = true
+}
+
+const openAddressDialog = () => {
+  resetAddressForm()
+  addressDialogVisible.value = true
+}
+
+const fillCurrentLocation = () => {
+  if (!navigator.geolocation) {
+    ElMessage.warning('当前浏览器不支持定位，请手动填写地址')
+    return
   }
+
+  locating.value = true
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const { latitude, longitude } = position.coords
+      try {
+        const data = await reverseGeocode({ latitude, longitude })
+        addressForm.province = data.province || ''
+        addressForm.city = data.city || ''
+        addressForm.district = data.district || ''
+
+        if (!addressForm.detailAddress.trim()) {
+          addressForm.detailAddress = data.recommendedDetailAddress || data.formattedAddress || ''
+        } else if (data.recommendedDetailAddress && !addressForm.detailAddress.includes(data.recommendedDetailAddress)) {
+          addressForm.detailAddress = `${data.recommendedDetailAddress} ${addressForm.detailAddress}`.trim()
+        }
+
+        ElMessage.success('已根据当前位置自动回填省、市、区')
+      } catch (_error) {
+        const locationText = `当前位置坐标：${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+        addressForm.detailAddress = addressForm.detailAddress
+          ? `${addressForm.detailAddress}\n${locationText}`
+          : locationText
+        ElMessage.warning('定位成功，但地址解析失败，已写入坐标供你补充')
+      } finally {
+        locating.value = false
+      }
+    },
+    () => {
+      locating.value = false
+      ElMessage.warning('定位失败，请检查浏览器定位权限后重试')
+    },
+    { enableHighAccuracy: true, timeout: 8000 }
+  )
+}
+
+const saveAddress = async () => {
+  if (!addressForm.receiverName.trim()) {
+    ElMessage.warning('请填写收货人')
+    return
+  }
+  if (!addressForm.phone.trim()) {
+    ElMessage.warning('请填写联系电话')
+    return
+  }
+  if (!addressForm.detailAddress.trim()) {
+    ElMessage.warning('请填写详细地址')
+    return
+  }
+
+  savingAddress.value = true
   try {
-    submitting.value = true;
-    await createOrder();
-    cartItems.value = [];
-    drawerVisible.value = false;
-    ElMessage.success("订单提交成功");
-    router.push("/mall/orders");
-  } catch {
-    ElMessage.error("订单提交失败，请重试");
+    const created = await createAddress({
+      receiverName: addressForm.receiverName.trim(),
+      phone: addressForm.phone.trim(),
+      province: addressForm.province.trim(),
+      city: addressForm.city.trim(),
+      district: addressForm.district.trim(),
+      detailAddress: addressForm.detailAddress.trim(),
+      isDefault: Boolean(addressForm.isDefault)
+    })
+    await fetchAddresses()
+    selectedAddressId.value = created?.id || selectedAddressId.value
+    addressDialogVisible.value = false
+    ElMessage.success('地址已保存')
   } finally {
-    submitting.value = false;
+    savingAddress.value = false
   }
-};
+}
 
-const handleLogout = () => {
-  userStore.clearAuth();
-  router.push("/login");
-};
+const submitOrder = async () => {
+  if (!selectedAddressId.value) {
+    ElMessage.warning('请先选择收货地址')
+    return
+  }
+  submitting.value = true
+  try {
+    await createOrder({
+      addressId: selectedAddressId.value,
+      remark: remark.value,
+      artworkName: artworkName.value,
+      artworkUrl: artworkUrl.value
+    })
+    ElMessage.success('订单提交成功')
+    remark.value = ''
+    artworkName.value = ''
+    artworkUrl.value = ''
+    checkoutVisible.value = false
+    drawerVisible.value = false
+    cartItems.value = []
+    window.dispatchEvent(new CustomEvent('cart-updated'))
+    router.push('/mall/orders')
+  } finally {
+    submitting.value = false
+  }
+}
 
-let ticker = null;
+const formatAddress = (address) => [address.province, address.city, address.district, address.detailAddress].filter(Boolean).join(' ')
+
+const getRemainingSeconds = (item) => Math.max(0, Math.floor((new Date(item.expiresAt).getTime() - now.value) / 1000))
+
+const formatRemaining = (item) => {
+  const seconds = getRemainingSeconds(item)
+  const minutes = String(Math.floor(seconds / 60)).padStart(2, '0')
+  const remain = String(seconds % 60).padStart(2, '0')
+  return `${minutes}:${remain}`
+}
+
+const getSpecs = (item) => {
+  const result = []
+  const walk = (obj) => {
+    Object.entries(obj || {}).forEach(([key, value]) => {
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        walk(value)
+      } else if (result.length < 4) {
+        result.push(`${key}: ${Array.isArray(value) ? value.join('、') : value}`)
+      }
+    })
+  }
+  walk(item.formData)
+  return result
+}
+
+const logout = () => {
+  userStore.clearAuth()
+  router.push('/login')
+}
+
+let timer = null
+
+const handleCheckoutNow = async () => {
+  await openDrawer()
+  await openCheckout()
+}
+
 onMounted(() => {
-  fetchCart();
-  ticker = setInterval(() => {
-    now.value = Date.now();
-    const before = cartItems.value.length;
-    cartItems.value = cartItems.value.filter((i) => getRemaining(i) > 0);
-    if (cartItems.value.length < before)
-      ElMessage.warning("部分暂存报价已超时失效");
-  }, 1000);
-  window.addEventListener("cart-updated", fetchCart);
-});
+  fetchCart()
+  timer = setInterval(() => {
+    now.value = Date.now()
+    cartItems.value = cartItems.value.filter(item => getRemainingSeconds(item) > 0)
+  }, 1000)
+  window.addEventListener('cart-updated', fetchCart)
+  window.addEventListener('checkout-now', handleCheckoutNow)
+})
 
 onUnmounted(() => {
-  clearInterval(ticker);
-  window.removeEventListener("cart-updated", fetchCart);
-});
-
-defineExpose({
-  openDrawer: () => {
-    drawerVisible.value = true;
-  },
-});
+  clearInterval(timer)
+  window.removeEventListener('cart-updated', fetchCart)
+  window.removeEventListener('checkout-now', handleCheckoutNow)
+})
 </script>
 
 <style scoped>
-/* ===== 玻璃拟态导航栏 ===== */
 .mall-navbar {
   position: sticky;
   top: 0;
   z-index: 1000;
-  height: 60px;
-  background: rgba(255,255,255,.78);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  border-bottom: 1px solid rgba(0,0,0,.06);
-  box-shadow: 0 1px 8px rgba(0,0,0,.04);
-}
-.nav-inner {
-  max-width: 1400px;
-  margin: 0 auto;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  padding: 0 28px;
-  gap: 8px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.9));
+  backdrop-filter: blur(18px);
 }
 
-/* Logo */
-.logo {
+.nav-inner {
+  max-width: 1380px;
+  margin: 0 auto;
+  min-height: 72px;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 20px;
+  padding: 0 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   cursor: pointer;
   flex-shrink: 0;
-  margin-right: 24px;
 }
-.logo-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #f72a44, #d32035);
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(247,42,68,.3);
-}
-.logo-text {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1a1a2e;
-  letter-spacing: -.2px;
+  color: #fff;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  box-shadow: 0 10px 20px rgba(249, 115, 22, 0.2);
 }
 
-/* 导航链接 + 动态下划线 */
-.nav-links {
+.brand-copy {
   display: flex;
-  gap: 4px;
-  flex: 1;
+  flex-direction: column;
+  gap: 2px;
 }
-.nav-link {
-  position: relative;
-  padding: 8px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--gray-500);
-  text-decoration: none;
-  border-radius: 8px;
-  transition: color .2s, background .2s;
-  cursor: pointer;
-}
-.nav-link:hover { color: var(--color-primary); background: var(--color-primary-light); }
-.nav-link.active { color: var(--color-primary); font-weight: 600; }
-.nav-link.active .nav-underline {
-  position: absolute;
-  bottom: -2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 20px;
-  height: 3px;
-  background: var(--color-primary);
-  border-radius: 2px;
-  transition: width .3s var(--ease-out);
-}
-.nav-link:hover .nav-underline { width: 28px; }
 
-/* 右侧操作 */
+.brand-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.brand-sub {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.nav-links {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.nav-link {
+  padding: 10px 14px;
+  border-radius: 999px;
+  color: #475569;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+  color: #0f172a;
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.nav-link.router-link-active {
+  color: #ea580c;
+  background: rgba(255, 237, 213, 0.9);
+}
+
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 14px;
-  flex-shrink: 0;
+  gap: 12px;
 }
 
-/* 购物车按钮 */
-.cart-btn {
-  position: relative;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
+.icon-btn,
+.user-pill {
   border: none;
-  background: var(--gray-100);
-  color: var(--gray-600);
   cursor: pointer;
-  display: flex;
+}
+
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all .25s var(--ease-out);
+  background: #fff;
+  color: #334155;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
 }
-.cart-btn:hover {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-  transform: scale(1.08);
+
+.user-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px 5px 5px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
 }
-.cart-count-bubble {
-  position: absolute;
-  top: -4px;
-  right: -6px;
-  min-width: 18px;
-  height: 18px;
-  border-radius: 9px;
-  background: var(--color-primary);
-  color: #fff;
-  font-size: 10px;
+
+.user-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+
+.user-label {
+  font-size: 13px;
   font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 4px;
-  animation: badge-pop .3s var(--ease-out);
-}
-@keyframes badge-pop {
-  0%   { transform: scale(.5); opacity: 0; }
-  60%  { transform: scale(1.15); }
-  100% { transform: scale(1); opacity: 1; }
+  color: #1e293b;
 }
 
-/* 用户按钮 */
-.user-btn {
+.user-role {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.drawer-wrap {
   display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.drawer-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.drawer-subtitle {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.cart-list {
+  flex: 1;
+  overflow: auto;
+  padding: 18px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cart-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 16px;
+  background: linear-gradient(180deg, #fff, #fcfdff);
+}
+
+.card-top,
+.card-bottom,
+.drawer-footer,
+.footer-actions,
+.address-head,
+.section-header,
+.empty-actions,
+.geo-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.product-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.expire-text {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #ef4444;
+}
+
+.spec-list {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  padding: 4px 14px 4px 4px;
-  border-radius: 24px;
-  border: 1px solid var(--gray-200);
-  background: rgba(255, 255, 255, 0.9);
-  cursor: pointer;
-  transition: all 0.3s var(--ease-out);
-  font-family: inherit;
-  font-size: 13px;
-  color: var(--gray-600);
-  box-shadow: var(--shadow-sm);
-}
-.user-btn:hover {
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
-}
-.user-name { font-weight: 600; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.user-chevron { color: var(--gray-400); transition: transform .2s; }
-
-/* 登录按钮 */
-.login-btn {
-  padding: 8px 20px;
-  border-radius: 20px;
-  border: none;
-  background: var(--color-primary);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all .25s;
-  box-shadow: 0 2px 8px rgba(247,42,68,.25);
-}
-.login-btn:hover {
-  background: var(--color-primary-dark);
-  box-shadow: 0 4px 14px rgba(247,42,68,.35);
-  transform: translateY(-1px);
+  margin: 14px 0;
 }
 
-/* ===== 购物车抽屉 Premium 设计 ===== */
-.cart-drawer-wrap {
-  display: flex; flex-direction: column; height: 100%;
-}
-
-/* 自定义头部 */
-.cart-drawer-head {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 16px 20px; border-bottom: 1px solid var(--gray-100);
-}
-.drawer-head-left { display: flex; align-items: center; gap: 10px; }
-.head-icon {
-  width: 30px; height: 30px; border-radius: 8px;
-  background: linear-gradient(135deg, #f72a44, #d32035);
-  display: flex; align-items: center; justify-content: center;
-}
-.head-title { font-size: 16px; font-weight: 700; color: var(--gray-700); }
-.head-count { font-size: 12px; color: var(--gray-400); background: var(--gray-100); padding: 2px 8px; border-radius: 10px; }
-
-/* 空状态 Premium */
-.cart-empty-premium {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-}
-.empty-gradient-bg {
-  text-align: center; padding: 48px 32px;
-  background: linear-gradient(160deg, #fdf2f4, #f8f9fc 60%);
-  border-radius: var(--radius-lg); margin: 20px;
-}
-.empty-icon-circle {
-  width: 88px; height: 88px; border-radius: 50%;
-  background: linear-gradient(135deg, #fef0f0, #fce4e4);
-  display: inline-flex; align-items: center; justify-content: center;
-  margin-bottom: 20px; box-shadow: inset 0 2px 4px rgba(255,255,255,.8);
-}
-.empty-gradient-bg h3 { font-size: 18px; color: var(--gray-600); margin: 0 0 6px; font-weight: 700; }
-.empty-gradient-bg p { font-size: 13px; color: var(--gray-400); margin: 0 0 20px; }
-
-/* 列表 */
-.cart-drawer-list {
-  flex: 1; overflow-y: auto; padding: 12px 16px;
-  display: flex; flex-direction: column; gap: 10px;
-}
-
-/* 卡片 */
-.cart-premium-card {
-  background: #fff; border-radius: var(--radius-md);
-  box-shadow: 0 1px 4px rgba(0,0,0,.04), 0 2px 12px rgba(0,0,0,.03);
-  padding: 14px 16px;
-  transition: box-shadow .25s;
-}
-.cart-premium-card:hover { box-shadow: var(--shadow-md); }
-.card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-.card-product-name { font-size: 14px; font-weight: 700; color: var(--gray-700); }
-.card-countdown {
-  display: flex; align-items: center; gap: 5px; font-size: 12px;
-  color: var(--green-500); margin-bottom: 10px; font-weight: 500;
-}
-.card-countdown.urgent { color: var(--color-primary); animation: pulse 1s infinite; }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-
-/* 核心规格 Chips */
-.card-core-specs {
-  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;
-}
 .spec-chip {
-  font-size: 11px; color: var(--gray-500);
-  background: var(--gray-50); padding: 3px 10px;
-  border-radius: 6px; border: 1px solid var(--gray-200);
-  max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px;
+  color: #475569;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 5px 10px;
 }
 
-/* 完整配置展开 */
-.card-full-config { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--gray-200); }
-.cfg-section { font-size: 12px; font-weight: 700; color: var(--gray-600); margin: 8px 0 4px; }
-.cfg-row {
-  display: flex; justify-content: space-between; padding: 4px 0;
-  font-size: 12px; color: var(--gray-500);
+.price-text {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ea580c;
 }
-.cfg-row span:last-child { color: var(--gray-600); font-weight: 500; text-align: right; max-width: 60%; }
 
-.expand-fade-enter-active, .expand-fade-leave-active { transition: all .3s var(--ease-out); }
-.expand-fade-enter-from, .expand-fade-leave-to { opacity: 0; max-height: 0; overflow: hidden; }
+.drawer-footer {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 16px;
+}
 
-/* 卡片底部 */
-.card-bottom {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--gray-100);
+.footer-total {
+  color: #64748b;
 }
-.card-price { font-size: 13px; color: var(--gray-500); }
-.card-price strong { font-size: 18px; color: var(--color-primary); font-weight: 800; }
-.card-bottom .el-icon { transition: transform .25s; font-size: 12px; }
-.card-bottom .el-icon.rotated { transform: rotate(180deg); }
 
-/* 底部毛玻璃 */
-.cart-drawer-foot {
-  padding: 16px 20px;
-  background: rgba(255,255,255,.88);
-  backdrop-filter: blur(16px);
-  border-top: 1px solid rgba(0,0,0,.05);
-  box-shadow: 0 -4px 16px rgba(0,0,0,.04);
+.footer-total strong {
+  margin-left: 8px;
+  font-size: 24px;
+  color: #ea580c;
 }
-.foot-summary {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 14px; font-size: 13px; color: var(--gray-500);
-}
-.foot-total strong {
-  font-size: 22px; color: var(--color-primary); font-weight: 800; margin-left: 6px;
-}
-.foot-actions { display: flex; gap: 10px; }
-.clear-all-btn { flex-shrink: 0; border-radius: 12px !important; }
 
-/* 提交按钮 — 品牌渐变 + 波纹 */
-.submit-order-btn {
-  flex: 1; height: 46px; border: none; border-radius: 14px;
-  background: linear-gradient(135deg, #f72a44, #d32035);
-  color: #fff; font-size: 15px; font-weight: 700;
-  cursor: pointer; position: relative; overflow: hidden;
-  font-family: inherit;
-  box-shadow: 0 4px 16px rgba(247,42,68,.3);
-  transition: all .25s;
+.footer-actions {
+  gap: 10px;
 }
-.submit-order-btn:hover { box-shadow: 0 6px 22px rgba(247,42,68,.4); transform: translateY(-1px); }
-.submit-order-btn:active { transform: scale(.98); }
-.submit-order-btn::after {
-  content: ''; position: absolute; inset: 0;
-  background: radial-gradient(circle at center, rgba(255,255,255,.3) 0%, transparent 70%);
-  opacity: 0; transition: opacity .3s;
-}
-.submit-order-btn:hover::after { opacity: 1; }
-.submit-order-btn:disabled { opacity: .6; cursor: wait; }
 
-.btn-loading {
-  display: inline-block; width: 18px; height: 18px;
-  border: 2px solid rgba(255,255,255,.3);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin .8s linear infinite;
+.checkout-section {
+  margin-bottom: 18px;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+
+.section-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.address-empty {
+  padding: 10px 0 4px;
+}
+
+.empty-actions {
+  justify-content: center;
+  gap: 12px;
+}
+
+.address-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.address-card {
+  display: flex;
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 14px;
+  cursor: pointer;
+  background: #fff;
+  transition: all 0.2s ease;
+}
+
+.address-card:hover {
+  border-color: #fdba74;
+  box-shadow: 0 10px 20px rgba(249, 115, 22, 0.08);
+}
+
+.address-card.active {
+  border-color: #f97316;
+  background: #fff7ed;
+}
+
+.address-card input {
+  margin-top: 4px;
+}
+
+.address-content {
+  flex: 1;
+}
+
+.address-body {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #475569;
+}
+
+.address-form {
+  padding-top: 4px;
+}
+
+.geo-row {
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.geo-tip {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+@media (max-width: 980px) {
+  .nav-inner {
+    flex-wrap: wrap;
+    padding: 14px 20px;
+  }
+
+  .nav-links {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    overflow: auto;
+    padding-bottom: 4px;
+  }
+}
 </style>

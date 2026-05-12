@@ -1,0 +1,138 @@
+CREATE TABLE IF NOT EXISTS `user_address` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT NOT NULL,
+  `receiver_name` VARCHAR(50) NOT NULL,
+  `phone` VARCHAR(20) NOT NULL,
+  `province` VARCHAR(50) DEFAULT '',
+  `city` VARCHAR(50) DEFAULT '',
+  `district` VARCHAR(50) DEFAULT '',
+  `detail_address` VARCHAR(255) NOT NULL,
+  `is_default` TINYINT(1) NOT NULL DEFAULT 0,
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_address_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户收货地址表';
+
+CREATE TABLE IF NOT EXISTS `quote_history` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT DEFAULT NULL,
+  `session_id` VARCHAR(64) DEFAULT NULL,
+  `category_id` BIGINT NOT NULL,
+  `product_name` VARCHAR(120) NOT NULL,
+  `form_data` JSON NOT NULL,
+  `raw_form_data` JSON DEFAULT NULL,
+  `price` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_quote_history_user_id` (`user_id`),
+  KEY `idx_quote_history_session_id` (`session_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='报价历史表';
+
+CREATE TABLE IF NOT EXISTS `after_sale` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `order_id` BIGINT NOT NULL,
+  `user_id` BIGINT NOT NULL,
+  `reason` VARCHAR(100) NOT NULL,
+  `description` TEXT,
+  `status` VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_after_sale_order_id` (`order_id`),
+  KEY `idx_after_sale_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='售后申请表';
+
+CREATE TABLE IF NOT EXISTS `site_config` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `config_key` VARCHAR(64) NOT NULL,
+  `config_value` TEXT,
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_site_config_key` (`config_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站点配置表';
+
+CREATE TABLE IF NOT EXISTS `order_timeline` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `order_id` BIGINT NOT NULL,
+  `status` VARCHAR(30) NOT NULL,
+  `title` VARCHAR(100) NOT NULL,
+  `description` VARCHAR(500) DEFAULT NULL,
+  `operator_type` VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_order_timeline_order_id` (`order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单履约时间线';
+
+SET @ddl = IF(
+  EXISTS(SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_info' AND COLUMN_NAME = 'receiver_name'),
+  'SELECT 1',
+  'ALTER TABLE `order_info` ADD COLUMN `receiver_name` VARCHAR(50) DEFAULT NULL'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF(
+  EXISTS(SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_info' AND COLUMN_NAME = 'artwork_name'),
+  'SELECT 1',
+  'ALTER TABLE `order_info` ADD COLUMN `artwork_name` VARCHAR(255) DEFAULT NULL'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF(
+  EXISTS(SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_info' AND COLUMN_NAME = 'artwork_url'),
+  'SELECT 1',
+  'ALTER TABLE `order_info` ADD COLUMN `artwork_url` VARCHAR(500) DEFAULT NULL'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF(
+  EXISTS(SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_info' AND COLUMN_NAME = 'production_note'),
+  'SELECT 1',
+  'ALTER TABLE `order_info` ADD COLUMN `production_note` VARCHAR(500) DEFAULT NULL'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF(
+  EXISTS(SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_info' AND COLUMN_NAME = 'tracking_no'),
+  'SELECT 1',
+  'ALTER TABLE `order_info` ADD COLUMN `tracking_no` VARCHAR(100) DEFAULT NULL'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF(
+  EXISTS(SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_info' AND COLUMN_NAME = 'receiver_phone'),
+  'SELECT 1',
+  'ALTER TABLE `order_info` ADD COLUMN `receiver_phone` VARCHAR(20) DEFAULT NULL'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF(
+  EXISTS(SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_info' AND COLUMN_NAME = 'receiver_address'),
+  'SELECT 1',
+  'ALTER TABLE `order_info` ADD COLUMN `receiver_address` VARCHAR(255) DEFAULT NULL'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF(
+  EXISTS(SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_info' AND COLUMN_NAME = 'order_remark'),
+  'SELECT 1',
+  'ALTER TABLE `order_info` ADD COLUMN `order_remark` VARCHAR(255) DEFAULT NULL'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;

@@ -2,443 +2,616 @@
   <div class="profile-page">
     <MallNavbar />
 
-    <div class="profile-body">
-      <!-- 左侧：基本信息 -->
-      <div class="profile-main">
-        <div class="section-card">
-          <div class="card-label">基础信息</div>
-
-          <!-- 头像上传 -->
-          <div class="avatar-upload-area">
-            <div class="avatar-wrap" @mouseenter="avatarHover = true" @mouseleave="avatarHover = false">
-              <el-avatar :size="88" :src="avatarUrl" class="profile-avatar">
-                <el-icon :size="36"><UserFilled /></el-icon>
-              </el-avatar>
-              <transition name="overlay-fade">
-                <div v-if="avatarHover" class="avatar-overlay" @click="triggerUpload">
-                  <el-icon :size="20"><Camera /></el-icon>
-                  <span>修改头像</span>
-                </div>
-              </transition>
-            </div>
-            <div class="avatar-actions">
-              <el-upload
-                ref="uploadRef"
-                class="avatar-uploader"
-                :action="uploadUrl"
-                :headers="uploadHeaders"
-                name="file"
-                :show-file-list="false"
-                accept="image/*"
-                :on-success="handleUploadSuccess"
-                :on-error="handleUploadError"
-                :before-upload="beforeUpload"
-              >
-                <el-button size="small" round>上传照片</el-button>
-              </el-upload>
-              <el-button size="small" round plain @click="handleRemoveAvatar" v-if="avatarUrl">移除</el-button>
-            </div>
+    <div class="page-body">
+      <section class="profile-hero">
+        <div class="hero-copy">
+          <span class="hero-kicker">Profile Studio</span>
+          <h1>个人中心</h1>
+          <p>统一管理账号资料、收货地址、历史报价和购物车记录。</p>
+        </div>
+        <div class="hero-user">
+          <el-avatar :size="84" :src="avatarUrl" icon="UserFilled" />
+          <div>
+            <div class="hero-user-name">{{ form.nickname || form.username || '未设置昵称' }}</div>
+            <div class="hero-user-sub">{{ form.email || '尚未绑定邮箱' }}</div>
           </div>
+        </div>
+      </section>
 
-          <el-divider />
-
-          <!-- 表单 -->
-          <el-form :model="form" :rules="rules" ref="formRef" label-position="top" class="info-form">
-            <el-row :gutter="20">
-              <el-col :span="12">
+      <el-tabs v-model="activeTab" class="profile-tabs">
+        <el-tab-pane label="个人资料" name="profile">
+          <div class="panel-grid">
+            <el-card class="soft-card">
+              <template #header>基础资料</template>
+              <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
                 <el-form-item label="登录账号">
-                  <el-input v-model="form.username" disabled class="glow-input" />
+                  <el-input v-model="form.username" disabled />
                 </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="显示昵称" prop="nickname">
-                  <el-input
-                    v-model="form.nickname"
-                    placeholder="请输入昵称"
-                    maxlength="20"
-                    show-word-limit
-                    class="glow-input"
-                  />
+                <el-form-item label="昵称" prop="nickname">
+                  <el-input v-model="form.nickname" />
                 </el-form-item>
-              </el-col>
-            </el-row>
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="绑定邮箱" prop="email">
-                  <el-input v-model="form.email" placeholder="请输入邮箱" class="glow-input" />
+                <el-form-item label="邮箱" prop="email">
+                  <el-input v-model="form.email" />
                 </el-form-item>
-              </el-col>
-            </el-row>
-            <el-form-item>
-              <el-button type="primary" size="large" round :loading="saving" @click="handleSave" class="save-btn">
-                保存修改
-              </el-button>
-            </el-form-item>
-          </el-form>
-        </div>
-      </div>
+                <el-button type="primary" :loading="saving" @click="saveProfile">保存资料</el-button>
+              </el-form>
+            </el-card>
 
-      <!-- 右侧：安全设置 -->
-      <div class="profile-side">
-        <div class="section-card">
-          <div class="card-label">安全设置</div>
-          <div class="security-list">
-            <div class="security-row">
-              <div class="sec-info">
-                <span class="sec-title">登录密码</span>
-                <span class="sec-hint">定期更换密码更安全</span>
-              </div>
-              <el-button link type="primary" @click="pwdDialogVisible = true">修改</el-button>
-            </div>
-            <el-divider style="margin: 14px 0" />
-            <div class="security-row">
-              <div class="sec-info">
-                <span class="sec-title">账号角色</span>
-                <span class="sec-hint">
-                  <el-tag :type="userStore.userInfo?.role === 'ADMIN' ? 'danger' : 'info'" size="small" round effect="plain">
-                    {{ userStore.userInfo?.role === 'ADMIN' ? '管理员' : '普通用户' }}
-                  </el-tag>
-                </span>
-              </div>
-            </div>
-            <el-divider style="margin: 14px 0" />
-            <div class="security-row">
-              <div class="sec-info">
-                <span class="sec-title">注册时间</span>
-                <span class="sec-hint">{{ formatTime(userStore.userInfo?.createTime) }}</span>
-              </div>
-            </div>
+            <el-card class="soft-card">
+              <template #header>安全设置</template>
+              <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-position="top">
+                <el-form-item label="当前密码" prop="oldPwd">
+                  <el-input v-model="pwdForm.oldPwd" type="password" show-password />
+                </el-form-item>
+                <el-form-item label="新密码" prop="newPwd">
+                  <el-input v-model="pwdForm.newPwd" type="password" show-password />
+                </el-form-item>
+                <el-form-item label="确认密码" prop="confirmPwd">
+                  <el-input v-model="pwdForm.confirmPwd" type="password" show-password />
+                </el-form-item>
+                <el-button type="warning" :loading="pwdSaving" @click="changePassword">修改密码</el-button>
+              </el-form>
+            </el-card>
           </div>
-        </div>
+        </el-tab-pane>
 
-      </div>
+        <el-tab-pane label="地址管理" name="address">
+          <el-card class="soft-card">
+            <template #header>
+              <div class="card-header">
+                <span>收货地址</span>
+                <el-button type="primary" @click="openAddressDialog()">新增地址</el-button>
+              </div>
+            </template>
+
+            <div v-if="addresses.length === 0" class="empty-address">
+              <el-empty description="还没有收货地址，新增一个就可以用于下单" />
+            </div>
+
+            <div v-else class="address-grid">
+              <div v-for="item in addresses" :key="item.id" class="address-item" :class="{ active: item.isDefault }">
+                <div class="address-top">
+                  <div class="address-owner">
+                    <strong>{{ item.receiverName }}</strong>
+                    <span>{{ item.phone }}</span>
+                  </div>
+                  <el-tag v-if="item.isDefault" type="success" round>默认地址</el-tag>
+                </div>
+
+                <p>{{ formatAddress(item) }}</p>
+
+                <div class="address-actions">
+                  <el-button link type="primary" @click="openAddressDialog(item)">编辑</el-button>
+                  <el-button v-if="!item.isDefault" link @click="makeDefault(item.id)">设为默认</el-button>
+                  <el-button link type="danger" @click="removeAddress(item.id)">删除</el-button>
+                </div>
+              </div>
+            </div>
+          </el-card>
+        </el-tab-pane>
+
+        <el-tab-pane label="历史报价" name="history">
+          <el-card class="soft-card">
+            <el-table :data="quoteHistory" border>
+              <el-table-column prop="productName" label="产品" min-width="160" />
+              <el-table-column prop="price" label="报价" width="120" />
+              <el-table-column prop="createTime" label="时间" width="180" />
+              <el-table-column label="操作" width="220">
+                <template #default="{ row }">
+                  <el-button link type="primary" @click="reuseQuote(row)">再次报价</el-button>
+                  <el-button link @click="reAddToCart(row)">加入购物车</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
+        </el-tab-pane>
+
+        <el-tab-pane label="购物车记录" name="cart">
+          <el-card class="soft-card">
+            <el-table :data="cartItems" border>
+              <el-table-column prop="productName" label="产品" min-width="180" />
+              <el-table-column prop="price" label="价格" width="120" />
+              <el-table-column prop="expiresAt" label="失效时间" width="180" />
+              <el-table-column label="操作" width="120">
+                <template #default="{ row }">
+                  <el-button link type="danger" @click="removeCart(row.id)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
+        </el-tab-pane>
+      </el-tabs>
     </div>
 
-    <!-- 修改密码弹窗 -->
-    <el-dialog v-model="pwdDialogVisible" title="修改登录密码" width="420px" :close-on-click-modal="false">
-      <el-form :model="pwdForm" :rules="pwdRules" ref="pwdFormRef" label-width="80px">
-        <el-form-item label="当前密码" prop="oldPwd">
-          <el-input v-model="pwdForm.oldPwd" type="password" show-password placeholder="请输入当前密码" />
+    <el-dialog v-model="addressDialogVisible" :title="editingAddress.id ? '编辑地址' : '新增地址'" width="680px" destroy-on-close>
+      <el-form :model="addressForm" label-position="top" class="address-form">
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="收货人">
+              <el-input v-model="addressForm.receiverName" maxlength="30" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="联系电话">
+              <el-input v-model="addressForm.phone" maxlength="20" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <div class="geo-row">
+          <div class="geo-tip">可直接手填地址，也可以用当前位置自动回填省、市、区。</div>
+          <el-button text type="primary" :loading="locating" @click="fillCurrentLocation">定位当前位置</el-button>
+        </div>
+
+        <el-row :gutter="16">
+          <el-col :span="8">
+            <el-form-item label="省">
+              <el-input v-model="addressForm.province" maxlength="30" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="市">
+              <el-input v-model="addressForm.city" maxlength="30" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="区">
+              <el-input v-model="addressForm.district" maxlength="30" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-form-item label="详细地址">
+          <el-input
+            v-model="addressForm.detailAddress"
+            type="textarea"
+            :rows="3"
+            placeholder="街道、门牌号、楼栋房间号等"
+          />
         </el-form-item>
-        <el-form-item label="新密码" prop="newPwd">
-          <el-input v-model="pwdForm.newPwd" type="password" show-password placeholder="至少6位" />
-        </el-form-item>
-        <el-form-item label="确认密码" prop="confirmPwd">
-          <el-input v-model="pwdForm.confirmPwd" type="password" show-password placeholder="再次输入" />
-        </el-form-item>
+
+        <el-checkbox v-model="addressForm.isDefault">设为默认地址</el-checkbox>
       </el-form>
+
       <template #footer>
-        <el-button @click="pwdDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="pwdSaving" @click="handleChangePwd">确认修改</el-button>
+        <el-button @click="addressDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="addressSaving" @click="saveAddress">保存</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { UserFilled, Camera } from '@element-plus/icons-vue';
-import { ElMessage } from 'element-plus';
-import MallNavbar from '@/components/MallNavbar.vue';
-import { useUserStore } from '@/stores/user';
-import { getCurrentUser, updateProfile, updatePassword } from '@/api/user';
+import { onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import MallNavbar from '@/components/MallNavbar.vue'
+import { useUserStore } from '@/stores/user'
+import { getCurrentUser, updateProfile, updatePassword } from '@/api/user'
+import { getAddresses, createAddress, updateAddress, deleteAddress, setDefaultAddress } from '@/api/address'
+import { getQuoteHistory } from '@/api/quoteHistory'
+import { getCartItems, addCartItem, deleteCartItem } from '@/api/cart'
+import { reverseGeocode } from '@/api/location'
 
-const router = useRouter();
-const userStore = useUserStore();
-const saving = ref(false);
-const avatarHover = ref(false);
-const avatarUrl = ref('');
-const uploadRef = ref(null);
-const formRef = ref(null);
-const pwdFormRef = ref(null);
-const pageLoading = ref(true);
+const router = useRouter()
+const userStore = useUserStore()
 
-const uploadUrl = 'http://localhost:8080/api/upload';
-const uploadHeaders = computed(() => ({
-  Authorization: 'Bearer ' + userStore.token,
-}));
+const formRef = ref(null)
+const pwdFormRef = ref(null)
+const saving = ref(false)
+const pwdSaving = ref(false)
+const addressSaving = ref(false)
+const locating = ref(false)
+const activeTab = ref('profile')
+const avatarUrl = ref('')
+const addresses = ref([])
+const quoteHistory = ref([])
+const cartItems = ref([])
+const addressDialogVisible = ref(false)
+const editingAddress = ref({})
 
 const form = reactive({
   username: '',
   nickname: '',
-  email: '',
-});
-
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  email: ''
+})
 
 const rules = {
-  email: [
-    { validator: (_rule, value, cb) => {
-      if (value && !emailRegex.test(value)) cb(new Error('请输入正确的邮箱格式'));
-      else cb();
-    }, trigger: 'blur' }
-  ],
-};
+  email: [{ type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }]
+}
 
-const pwdForm = reactive({ oldPwd: '', newPwd: '', confirmPwd: '' });
-
-const validateConfirmPwd = (_rule, value, cb) => {
-  if (value !== pwdForm.newPwd) cb(new Error('两次密码不一致'));
-  else cb();
-};
+const pwdForm = reactive({
+  oldPwd: '',
+  newPwd: '',
+  confirmPwd: ''
+})
 
 const pwdRules = {
   oldPwd: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
-  newPwd: [
-    { required: true, message: '请输入新密码', trigger: 'blur' },
-    { min: 6, message: '新密码至少6位', trigger: 'blur' },
-  ],
-  confirmPwd: [
-    { required: true, message: '请再次输入新密码', trigger: 'blur' },
-    { validator: validateConfirmPwd, trigger: 'blur' },
-  ],
-};
+  newPwd: [{ required: true, message: '请输入新密码', trigger: 'blur' }],
+  confirmPwd: [{
+    validator: (_rule, value, callback) => {
+      if (value !== pwdForm.newPwd) callback(new Error('两次密码输入不一致'))
+      else callback()
+    },
+    trigger: 'blur'
+  }]
+}
 
-const pwdDialogVisible = ref(false);
-const pwdSaving = ref(false);
+const addressForm = reactive({
+  receiverName: '',
+  phone: '',
+  province: '',
+  city: '',
+  district: '',
+  detailAddress: '',
+  isDefault: false
+})
 
-const formatTime = (t) => {
-  if (!t) return '-';
-  const d = new Date(t);
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
+const formatAddress = (address) =>
+  [address.province, address.city, address.district, address.detailAddress].filter(Boolean).join(' ')
 
-const populateForm = (user) => {
-  form.username = user.username || '';
-  form.nickname = user.nickname || '';
-  form.email = user.email || '';
-  avatarUrl.value = user.avatar || '';
-};
+const resetAddressForm = () => {
+  Object.assign(addressForm, {
+    receiverName: '',
+    phone: '',
+    province: '',
+    city: '',
+    district: '',
+    detailAddress: '',
+    isDefault: addresses.value.length === 0
+  })
+}
 
-const syncUserStore = (user) => {
-  userStore.setUserInfo({
-    ...userStore.userInfo,
-    username: user.username,
-    nickname: user.nickname,
-    email: user.email,
-    avatar: user.avatar,
-    role: user.role,
-    createTime: user.createTime,
-  });
-};
+const loadProfile = async () => {
+  const user = await getCurrentUser()
+  form.username = user.username || ''
+  form.nickname = user.nickname || ''
+  form.email = user.email || ''
+  avatarUrl.value = user.avatar || ''
+  userStore.setUserInfo({ ...userStore.userInfo, ...user })
+}
 
-const triggerUpload = () => {
-  uploadRef.value?.$el?.querySelector('input[type="file"]')?.click();
-};
+const loadExtraData = async () => {
+  addresses.value = await getAddresses()
+  quoteHistory.value = await getQuoteHistory()
+  cartItems.value = await getCartItems()
+}
 
-const beforeUpload = (file) => {
-  const isImage = file.type.startsWith('image/');
-  if (!isImage) {
-    ElMessage.error('只能上传图片文件');
-    return false;
-  }
-  const isLt2M = file.size / 1024 / 1024 < 2;
-  if (!isLt2M) {
-    ElMessage.error('图片大小不能超过 2MB');
-    return false;
-  }
-  return true;
-};
-
-const handleUploadSuccess = async (response) => {
-  // response is the data returned by the interceptor: the URL string
-  const url = typeof response === 'string' ? response : response.data;
-  if (!url) {
-    ElMessage.error('上传返回异常');
-    return;
-  }
-  avatarUrl.value = url;
+const saveProfile = async () => {
+  const valid = await formRef.value.validate().catch(() => false)
+  if (!valid) return
+  saving.value = true
   try {
-    const user = await updateProfile({ avatar: url });
-    syncUserStore(user);
-    ElMessage.success('头像已更新');
-  } catch {
-    ElMessage.error('头像同步失败，请刷新重试');
-  }
-};
-
-const handleUploadError = () => {
-  ElMessage.error('头像上传失败');
-};
-
-const handleRemoveAvatar = async () => {
-  avatarUrl.value = '';
-  try {
-    const user = await updateProfile({ avatar: '' });
-    syncUserStore(user);
-    ElMessage.success('头像已移除');
-  } catch {
-    ElMessage.error('操作失败');
-  }
-};
-
-const handleSave = async () => {
-  const valid = await formRef.value.validate().catch(() => false);
-  if (!valid) return;
-
-  saving.value = true;
-  try {
-    const user = await updateProfile({
-      nickname: form.nickname,
-      email: form.email,
-    });
-    syncUserStore(user);
-    ElMessage.success('个人资料已更新');
-  } catch {
-    ElMessage.error('保存失败，请重试');
+    const user = await updateProfile({ nickname: form.nickname, email: form.email })
+    userStore.setUserInfo({ ...userStore.userInfo, ...user })
+    ElMessage.success('资料已保存')
   } finally {
-    saving.value = false;
+    saving.value = false
   }
-};
+}
 
-const handleChangePwd = async () => {
-  const valid = await pwdFormRef.value.validate().catch(() => false);
-  if (!valid) return;
-
-  pwdSaving.value = true;
+const changePassword = async () => {
+  const valid = await pwdFormRef.value.validate().catch(() => false)
+  if (!valid) return
+  pwdSaving.value = true
   try {
-    await updatePassword({
-      oldPassword: pwdForm.oldPwd,
-      newPassword: pwdForm.newPwd,
-    });
-    ElMessage.success('密码修改成功，请重新登录');
-    pwdDialogVisible.value = false;
-    userStore.clearAuth();
-    router.push('/login');
-  } catch {
-    // error handled by interceptor
+    await updatePassword({ oldPassword: pwdForm.oldPwd, newPassword: pwdForm.newPwd })
+    ElMessage.success('密码已修改，请重新登录')
+    userStore.clearAuth()
+    router.push('/login')
   } finally {
-    pwdSaving.value = false;
+    pwdSaving.value = false
   }
-};
+}
+
+const openAddressDialog = (address = null) => {
+  editingAddress.value = address || {}
+  if (!address) {
+    resetAddressForm()
+  } else {
+    Object.assign(addressForm, {
+      receiverName: address.receiverName || '',
+      phone: address.phone || '',
+      province: address.province || '',
+      city: address.city || '',
+      district: address.district || '',
+      detailAddress: address.detailAddress || '',
+      isDefault: Boolean(address.isDefault)
+    })
+  }
+  addressDialogVisible.value = true
+}
+
+const fillCurrentLocation = () => {
+  if (!navigator.geolocation) {
+    ElMessage.warning('当前浏览器不支持定位，请手动填写地址')
+    return
+  }
+
+  locating.value = true
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const { latitude, longitude } = position.coords
+      try {
+        const data = await reverseGeocode({ latitude, longitude })
+        addressForm.province = data.province || ''
+        addressForm.city = data.city || ''
+        addressForm.district = data.district || ''
+
+        if (!addressForm.detailAddress.trim()) {
+          addressForm.detailAddress = data.recommendedDetailAddress || data.formattedAddress || ''
+        } else if (data.recommendedDetailAddress && !addressForm.detailAddress.includes(data.recommendedDetailAddress)) {
+          addressForm.detailAddress = `${data.recommendedDetailAddress} ${addressForm.detailAddress}`.trim()
+        }
+
+        ElMessage.success('已根据当前位置自动回填省、市、区')
+      } catch (_error) {
+        const locationText = `当前位置坐标：${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+        addressForm.detailAddress = addressForm.detailAddress
+          ? `${addressForm.detailAddress}\n${locationText}`
+          : locationText
+        ElMessage.warning('定位成功，但地址解析失败，已写入坐标供你补充')
+      } finally {
+        locating.value = false
+      }
+    },
+    () => {
+      locating.value = false
+      ElMessage.warning('定位失败，请检查浏览器定位权限后重试')
+    },
+    { enableHighAccuracy: true, timeout: 8000 }
+  )
+}
+
+const saveAddress = async () => {
+  if (!addressForm.receiverName.trim()) {
+    ElMessage.warning('请填写收货人')
+    return
+  }
+  if (!addressForm.phone.trim()) {
+    ElMessage.warning('请填写联系电话')
+    return
+  }
+  if (!addressForm.detailAddress.trim()) {
+    ElMessage.warning('请填写详细地址')
+    return
+  }
+
+  addressSaving.value = true
+  try {
+    const payload = {
+      receiverName: addressForm.receiverName.trim(),
+      phone: addressForm.phone.trim(),
+      province: addressForm.province.trim(),
+      city: addressForm.city.trim(),
+      district: addressForm.district.trim(),
+      detailAddress: addressForm.detailAddress.trim(),
+      isDefault: Boolean(addressForm.isDefault)
+    }
+
+    if (editingAddress.value.id) {
+      await updateAddress(editingAddress.value.id, payload)
+    } else {
+      await createAddress(payload)
+    }
+
+    addressDialogVisible.value = false
+    addresses.value = await getAddresses()
+    ElMessage.success('地址已保存')
+  } finally {
+    addressSaving.value = false
+  }
+}
+
+const makeDefault = async (id) => {
+  await setDefaultAddress(id)
+  addresses.value = await getAddresses()
+}
+
+const removeAddress = async (id) => {
+  await deleteAddress(id)
+  addresses.value = await getAddresses()
+}
+
+const reuseQuote = (row) => {
+  localStorage.setItem('quote_reuse_payload', JSON.stringify({
+    categoryId: row.categoryId,
+    rawFormData: row.rawFormData
+  }))
+  router.push({ path: '/mall', query: { categoryId: row.categoryId } })
+}
+
+const reAddToCart = async (row) => {
+  await addCartItem({
+    categoryId: row.categoryId,
+    productName: row.productName,
+    formData: row.formData,
+    price: row.price
+  })
+  ElMessage.success('已重新加入购物车')
+  cartItems.value = await getCartItems()
+  window.dispatchEvent(new CustomEvent('cart-updated'))
+}
+
+const removeCart = async (id) => {
+  await deleteCartItem(id)
+  cartItems.value = await getCartItems()
+}
 
 onMounted(async () => {
-  try {
-    const user = await getCurrentUser();
-    populateForm(user);
-    syncUserStore(user);
-  } catch {
-    // fallback to local store data
-    const info = userStore.userInfo;
-    if (info && info.username) {
-      populateForm(info);
-    }
-  } finally {
-    pageLoading.value = false;
-  }
-});
+  await loadProfile()
+  await loadExtraData()
+})
 </script>
 
 <style scoped>
 .profile-page {
   min-height: 100vh;
-  background: var(--gray-100);
-}
-.profile-body {
-  max-width: 940px;
-  margin: 36px auto 80px;
-  padding: 0 24px;
-  display: grid;
-  grid-template-columns: 1fr 300px;
-  gap: 24px;
-  align-items: start;
-  animation: fadeInScale .5s var(--ease-out);
+  background: radial-gradient(circle at top, #fff7ed 0%, #f8fafc 22%, #f1f5f9 100%);
 }
 
-.section-card {
-  background: #fff;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  padding: 28px;
-  margin-bottom: 20px;
-  border: 1px solid var(--gray-200);
-}
-.card-label {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--gray-700);
-  margin-bottom: 22px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid var(--gray-100);
-  letter-spacing: -.2px;
+.page-body {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 24px 64px;
 }
 
-/* 头像上传 */
-.avatar-upload-area {
+.profile-hero {
   display: flex;
-  align-items: center;
-  gap: 24px;
-  margin-bottom: 8px;
-}
-.avatar-wrap {
-  position: relative;
-  cursor: pointer;
-  border-radius: 50%;
-}
-.avatar-uploader {
-  display: inline-block;
-}
-.profile-avatar {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  box-shadow: 0 4px 16px rgba(102,126,234,.3);
-}
-.avatar-overlay {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: rgba(0,0,0,.45);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  z-index: 1;
-}
-.overlay-fade-enter-active,
-.overlay-fade-leave-active { transition: opacity .2s; }
-.overlay-fade-enter-from,
-.overlay-fade-leave-to { opacity: 0; }
-.avatar-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-/* 输入框 Glow */
-:deep(.glow-input .el-input__wrapper) {
-  border-radius: 10px;
-  transition: all .3s var(--ease-out);
-}
-:deep(.glow-input .el-input__wrapper:hover) {
-  box-shadow: 0 0 0 2px rgba(247,42,68,.08);
-}
-:deep(.glow-input .el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 3px rgba(247,42,68,.15), 0 0 16px rgba(247,42,68,.06);
-  border-color: var(--color-primary);
-}
-
-.save-btn {
-  margin-top: 10px;
-  padding: 10px 32px !important;
-  box-shadow: 0 4px 14px rgba(247,42,68,.25);
-}
-
-/* 安全设置 */
-.security-row {
-  display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 30px 32px;
+  border-radius: 26px;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: #fff;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.14);
+  margin-bottom: 22px;
 }
-.sec-info { display: flex; flex-direction: column; gap: 3px; }
-.sec-title { font-size: 14px; font-weight: 600; color: var(--gray-600); }
-.sec-hint { font-size: 12px; color: var(--gray-400); }
 
-@media (max-width: 768px) {
-  .profile-body { grid-template-columns: 1fr; }
+.hero-kicker {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+  margin-bottom: 10px;
+}
+
+.hero-copy h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 800;
+}
+
+.hero-copy p {
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.hero-user {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.hero-user-name {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.hero-user-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.64);
+}
+
+.profile-tabs :deep(.el-tabs__nav-wrap::after) {
+  display: none;
+}
+
+.profile-tabs :deep(.el-tabs__item) {
+  height: 42px;
+  padding: 0 20px;
+  font-weight: 700;
+}
+
+.profile-tabs :deep(.el-tabs__active-bar) {
+  height: 3px;
+  border-radius: 999px;
+}
+
+.panel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.soft-card {
+  border-radius: 22px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.card-header,
+.address-top,
+.address-actions,
+.geo-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.empty-address {
+  padding: 12px 0;
+}
+
+.address-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.address-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 16px;
+  background: linear-gradient(180deg, #fff, #fbfdff);
+}
+
+.address-item.active {
+  border-color: #86efac;
+  background: linear-gradient(180deg, #f0fdf4, #f7fee7);
+}
+
+.address-owner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.address-owner span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.address-item p {
+  margin: 14px 0;
+  line-height: 1.7;
+  color: #475569;
+  min-height: 44px;
+}
+
+.address-form {
+  padding-top: 4px;
+}
+
+.geo-row {
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.geo-tip {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+@media (max-width: 900px) {
+  .profile-hero,
+  .panel-grid,
+  .address-grid {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .hero-user {
+    width: 100%;
+  }
 }
 </style>

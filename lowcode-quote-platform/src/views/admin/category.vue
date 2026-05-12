@@ -159,63 +159,74 @@
                 <el-button plain type="primary" @click="addSizePreset(currentActiveElement)">新增尺寸</el-button>
               </template>
 
-              <el-divider>联动约束（当前配置区域）</el-divider>
-              <el-card v-for="(rule, ruleIndex) in currentConstraints" :key="ruleIndex" class="rule-card" shadow="never">
-                <div class="rule-header">
-                  <el-select v-model="rule.logic" size="small" style="width: 80px">
-                    <el-option label="且 (AND)" value="AND" />
-                    <el-option label="或 (OR)" value="OR" />
-                  </el-select>
-                  <span class="rule-tip">满足以下条件时：</span>
-                  <el-button link type="danger" @click="removeConstraint(rule)">删除规则</el-button>
-                </div>
+              <template v-if="showConstraintEditor">
+                <el-divider>字段控制（当前配置区域）</el-divider>
+                <el-card v-for="(rule, ruleIndex) in currentConstraints" :key="ruleIndex" class="rule-card" shadow="never">
+                  <div class="rule-header">
+                    <el-select v-model="rule.logic" size="small" style="width: 80px">
+                      <el-option label="且 (AND)" value="AND" />
+                      <el-option label="或 (OR)" value="OR" />
+                    </el-select>
+                    <span class="rule-tip">满足以下条件时：</span>
+                    <el-button link type="danger" @click="removeConstraint(rule)">删除配置</el-button>
+                  </div>
 
-                <div v-for="(cond, condIndex) in rule.conditions" :key="condIndex" class="condition-row">
-                  <div class="cond-main">
-                    <el-select v-model="cond.targetId" placeholder="条件字段" size="small" @change="cond.value = ''">
-                      <el-option v-for="candidate in allElements" :key="candidate.id" :label="candidate.name" :value="candidate.id" />
-                    </el-select>
-                    <el-select v-model="cond.operator" size="small" style="width: 100px">
-                      <el-option label="等于" value="==" />
-                      <el-option label="不等于" value="!=" />
-                      <el-option label="包含" value="in" />
-                    </el-select>
-                    
-                    <!-- 条件值选择优化 -->
-                    <template v-if="cond.targetId">
-                      <el-select 
-                        v-if="getFieldOptions(cond.targetId).length" 
-                        v-model="cond.value" 
-                        placeholder="请选择值" 
-                        size="small"
-                        filterable
-                      >
-                        <el-option 
-                          v-for="opt in getFieldOptions(cond.targetId)" 
-                          :key="opt.value" 
-                          :label="opt.label" 
-                          :value="opt.value" 
-                        />
+                  <div v-for="(cond, condIndex) in rule.conditions" :key="condIndex" class="condition-row">
+                    <div class="cond-main">
+                      <el-select v-model="cond.targetId" placeholder="条件字段" size="small" @change="cond.value = ''">
+                        <el-option v-for="candidate in allElements" :key="candidate.id" :label="candidate.name" :value="candidate.id" />
                       </el-select>
-                      <el-input v-else v-model="cond.value" placeholder="条件值" size="small" />
-                    </template>
-                    <el-input v-else v-model="cond.value" placeholder="条件值" size="small" disabled />
+                      <el-select v-model="cond.operator" size="small" style="width: 100px">
+                        <el-option label="等于" value="==" />
+                        <el-option label="不等于" value="!=" />
+                        <el-option label="包含" value="in" />
+                      </el-select>
+                      <template v-if="cond.targetId">
+                        <el-select
+                          v-if="getFieldOptions(cond.targetId).length"
+                          v-model="cond.value"
+                          placeholder="请选择值"
+                          size="small"
+                          filterable
+                        >
+                          <el-option
+                            v-for="opt in getFieldOptions(cond.targetId)"
+                            :key="opt.value"
+                            :label="opt.label"
+                            :value="opt.value"
+                          />
+                        </el-select>
+                        <el-input v-else v-model="cond.value" placeholder="条件值" size="small" />
+                      </template>
+                      <el-input v-else v-model="cond.value" placeholder="条件值" size="small" disabled />
+                    </div>
+                    <el-button link type="danger" :icon="Delete" @click="removeCondition(rule, condIndex)" v-if="rule.conditions.length > 1" />
                   </div>
-                  <el-button link type="danger" :icon="Delete" @click="removeCondition(rule, condIndex)" v-if="rule.conditions.length > 1" />
-                </div>
-                
-                <div class="rule-footer">
-                  <el-button link type="primary" :icon="Plus" @click="addCondition(rule)">添加条件</el-button>
-                  <div class="action-wrap">
-                    <span class="action-label">执行：</span>
-                    <el-select v-model="rule.action.effect" size="small" style="width: 100px">
-                      <el-option label="隐藏" value="hide" />
-                      <el-option label="禁用" value="disable" />
-                    </el-select>
+
+                  <div class="rule-footer">
+                    <el-button link type="primary" :icon="Plus" @click="addCondition(rule)">添加条件</el-button>
+                    <div class="action-wrap">
+                      <span class="action-label">执行：</span>
+                      <el-select v-model="rule.action.effect" size="small" style="width: 100px">
+                        <el-option label="隐藏" value="hide" />
+                        <el-option label="禁用" value="disable" />
+                      </el-select>
+                    </div>
                   </div>
+                </el-card>
+                <el-button plain type="warning" @click="addConstraint">+ 添加控制项</el-button>
+              </template>
+              <template v-else>
+                <el-divider>基础校验说明</el-divider>
+                <div class="constraint-lite-tip">
+                  当前方案不将复杂逻辑配置作为核心能力，配置重点放在字段、选项、默认值、必填和价格参数上。
                 </div>
-              </el-card>
-              <el-button plain type="warning" @click="addConstraint">+ 添加规则</el-button>
+                <div class="constraint-lite-list">
+                  <div>1. 数量类字段可通过最小值、最大值和步长控制输入范围。</div>
+                  <div>2. 选项类字段可通过候选项、默认值和是否必填控制可选内容。</div>
+                  <div>3. 特殊业务限制建议在产品模板说明或后端固定校验中处理，避免配置过度复杂。</div>
+                </div>
+              </template>
             </el-form>
           </div>
           <el-empty v-else :description="propertyEmptyDescription" />
@@ -240,7 +251,7 @@
                       <span class="po-opt-label">加价</span>
                       <el-input-number v-model="opt.priceAdd" size="small" :step="0.01" :precision="2" style="width:80px" />
                       <span class="po-opt-label">系数</span>
-                      <el-input-number v-model="opt.priceRatio" size="small" :min="0" :step="0.1" :precision="2" style="width:70px" />
+                      <el-input-number v-model="opt.priceRatio" size="small" :min="0" :max="10" :step="0.1" :precision="2" style="width:70px" />
                       <el-button link type="danger" size="small" @click="el.options.splice(oi, 1)">删</el-button>
                     </div>
                     <el-button link type="primary" size="small" @click="addPricingOption(el)">+ 选项</el-button>
@@ -252,7 +263,7 @@
                       <span class="po-opt-label">加价</span>
                       <el-input-number v-model="opt.priceAdd" size="small" :step="0.01" :precision="2" style="width:80px" />
                       <span class="po-opt-label">系数</span>
-                      <el-input-number v-model="opt.priceRatio" size="small" :min="0" :step="0.1" :precision="2" style="width:70px" />
+                      <el-input-number v-model="opt.priceRatio" size="small" :min="0" :max="10" :step="0.1" :precision="2" style="width:70px" />
                       <el-button link type="danger" size="small" @click="el.options.splice(oi, 1)">删</el-button>
                     </div>
                     <el-button link type="primary" size="small" @click="addPricingOption(el)">+ 选项</el-button>
@@ -473,6 +484,8 @@ const subElementEditList = ref([])
 
 const showVariableHelper = ref(false)
 const simulationResult = ref(null)
+const simulationDetails = ref(null)
+const showConstraintEditor = false
 
 const schemaData = ref(normalizeSchema(null))
 
@@ -542,7 +555,7 @@ const pricingBasePrice = computed({
   }
 })
 
-const builtinVars = ['basePrice', 'optionTotal', 'quantity', 'models']
+const builtinVars = ['basePrice', 'optionTotal', 'optionRatio', 'quantity', 'models']
 
 const elementVars = computed(() => allElements.value.map(el => {
   const key = el.pricingMeta?.key || el.id
@@ -630,9 +643,23 @@ const addPricingPreset = (el) => {
   el.presets.push({ label: '', width: 0, height: 0, priceAdd: 0 })
 }
 
+const collectPricingValidationIssues = () => {
+  const issues = []
+  allElements.value.forEach((element) => {
+    ;(element.options || []).forEach((option) => {
+      const ratio = Number(option.priceRatio)
+      if (!Number.isNaN(ratio) && ratio > 10) {
+        issues.push(`${element.name || element.id} / ${option.label || option.id} 的系数为 ${ratio}，已明显超出常用倍率范围。`)
+      }
+    })
+  })
+  return issues
+}
+
 const simulatePricing = async () => {
   if (!activeCategory.value?.id) return
   const testFormData = {}
+  simulationDetails.value = null
   allElements.value.forEach(el => {
     if (el.type === 'checkbox') {
       testFormData[el.id] = el.options?.[0]?.id ? [el.options[0].id] : []
@@ -649,9 +676,34 @@ const simulatePricing = async () => {
   })
   try {
     const result = await adminPreviewCalculatePrice(activeCategory.value.id, { formData: testFormData })
-    simulationResult.value = result
+    const normalized = normalizePricingResponse(result)
+    simulationResult.value = normalized.totalPriceText
+    simulationDetails.value = normalized
+    if (normalized.warnings.length) {
+      ElMessage.warning(normalized.warnings[0])
+    }
   } catch {
     simulationResult.value = '模拟失败'
+  }
+}
+
+const normalizePricingResponse = (response) => {
+  if (response && typeof response === 'object') {
+    return {
+      totalPriceText: response.totalPriceText || Number(response.totalPrice || 0).toFixed(2),
+      breakdown: Array.isArray(response.breakdown) ? response.breakdown : [],
+      warnings: Array.isArray(response.warnings) ? response.warnings : [],
+      mode: response.mode || 'formula',
+      formula: response.formula || ''
+    }
+  }
+
+  return {
+    totalPriceText: Number(response || 0).toFixed(2),
+    breakdown: [],
+    warnings: [],
+    mode: 'formula',
+    formula: ''
   }
 }
 
@@ -1035,6 +1087,11 @@ const cleanBucket = (bucket) => ({
 
 const saveToServer = async () => {
   if (!schemaData.value.categoryId && activeCategory.value?.id) schemaData.value.categoryId = activeCategory.value.id
+  const pricingIssues = collectPricingValidationIssues()
+  if (pricingIssues.length) {
+    ElMessage.warning(pricingIssues[0])
+    return
+  }
   if (!schemaData.value.categoryId) return ElMessage.error('请先选择末级分类')
 
   schemaData.value.productName = activeCategory.value?.name || schemaData.value.productName || '未命名产品'
@@ -1175,6 +1232,23 @@ onMounted(async () => {
   display: flex; align-items: center; gap: 4px; margin-bottom: 4px;
 }
 .po-opt-label { font-size: 10px; color: #909399; flex-shrink: 0; }
+.constraint-lite-tip {
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  color: #475569;
+  line-height: 1.7;
+}
+.constraint-lite-list {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px dashed #dbe2ea;
+  border-radius: 8px;
+  color: #64748b;
+  line-height: 1.8;
+}
 
 /* 公式编辑器 */
 .formula-section { margin-bottom: 4px; }

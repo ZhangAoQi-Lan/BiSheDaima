@@ -23,6 +23,22 @@ public class OrderInfo {
 
     private String status;
 
+    private String receiverName;
+
+    private String receiverPhone;
+
+    private String receiverAddress;
+
+    private String orderRemark;
+
+    private String artworkName;
+
+    private String artworkUrl;
+
+    private String productionNote;
+
+    private String trackingNo;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;
